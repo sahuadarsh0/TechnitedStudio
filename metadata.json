@@ -1,0 +1,7 @@
+{
+  "name": "Technited Studio",
+  "description": "A state-of-the-art multimodal AI image generation studio featuring voice-to-prompt, intelligent prompt optimization, and high-fidelity generation.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

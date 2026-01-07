@@ -1,0 +1,180 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Technited Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              obsidian: '#050505',
+              charcoal: '#0a0a0a',
+              laserBlue: '#00f0ff',
+              laserPurple: '#7000ff',
+              deepWine: '#2b0510',
+              midnight: '#020208',
+              glass: 'rgba(20, 20, 20, 0.6)',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            boxShadow: {
+              'neon': '0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.3)',
+              'neon-purple': '0 0 10px rgba(112, 0, 255, 0.5), 0 0 20px rgba(112, 0, 255, 0.3)',
+              'neon-red': '0 0 10px rgba(255, 0, 50, 0.5), 0 0 20px rgba(255, 0, 50, 0.3)',
+              'glass-inset': 'inset 0 1px 1px rgba(255, 255, 255, 0.05), inset 0 20px 40px rgba(0,0,0,0.2)',
+            },
+            animation: {
+              'scanline': 'scanline 8s linear infinite',
+              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'flash': 'flash 1s ease-out forwards',
+              'gradient-flow': 'gradientFlow 30s ease infinite',
+              'border-rotate': 'borderRotate 4s linear infinite',
+              'progress': 'progress 4s ease-out forwards',
+            },
+            keyframes: {
+              scanline: {
+                '0%': { backgroundPosition: '0% 50%' },
+                '100%': { backgroundPosition: '100% 50%' },
+              },
+              flash: {
+                '0%': { opacity: '0' },
+                '10%': { opacity: '0.2' },
+                '100%': { opacity: '0' },
+              },
+              gradientFlow: {
+                '0%': { backgroundPosition: '0% 50%' },
+                '50%': { backgroundPosition: '100% 50%' },
+                '100%': { backgroundPosition: '0% 50%' },
+              },
+              borderRotate: {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' },
+              },
+              progress: {
+                '0%': { width: '0%' },
+                '50%': { width: '70%' },
+                '100%': { width: '95%' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      @keyframes gradientFlow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      body {
+        /* 
+           Cinematic Space Studio Theme
+           Updated for smoother flow between obsidian, wine blue, and midnight black.
+        */
+        background-color: #050505;
+        background: linear-gradient(
+          125deg,
+          #020204 0%,     /* Deep Obsidian */
+          #0f0514 25%,    /* Subtle Dark Wine */
+          #050914 50%,    /* Midnight Blue */
+          #0f0514 75%,    /* Subtle Dark Wine */
+          #020204 100%    /* Deep Obsidian */
+        );
+        background-size: 300% 300%;
+        animation: gradientFlow 45s ease-in-out infinite;
+        color: #e2e8f0;
+        overflow: hidden;
+      }
+
+      /* Premium Glass Panel */
+      .pro-glass {
+        background: rgba(10, 10, 12, 0.6);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      }
+
+      .pro-glass-hover:hover {
+        background: rgba(20, 20, 25, 0.7);
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+
+      /* Custom Range Slider */
+      input[type=range] {
+        -webkit-appearance: none;
+        background: transparent;
+      }
+      input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 16px;
+        width: 16px;
+        border-radius: 50%;
+        background: #00f0ff;
+        cursor: pointer;
+        margin-top: -6px;
+        box-shadow: 0 0 10px #00f0ff;
+        transition: transform 0.1s;
+      }
+      input[type=range]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+      input[type=range]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 4px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      /* Utility for text gradients */
+      .text-glow {
+        text-shadow: 0 0 20px rgba(255,255,255,0.1);
+      }
+      
+      .h-safe-screen {
+        height: 100vh;
+        height: 100dvh;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
