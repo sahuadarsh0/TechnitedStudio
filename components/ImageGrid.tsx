@@ -81,11 +81,19 @@ const ImageGrid: React.FC<ImageGridProps> = ({
 
   const handleSelectAll = useCallback(() => {
       setSelectedIds(prev => {
-          // If all filtered images are selected, deselect all. Otherwise, select all filtered.
-          if (prev.size === filteredImages.length && filteredImages.length > 0) {
+          // Only select items that are completed
+          const selectableImages = filteredImages.filter(img => img.status === 'completed');
+          
+          if (selectableImages.length === 0) return new Set();
+
+          const allSelectableAreSelected = selectableImages.every(img => prev.has(img.id));
+
+          // If all selectable (completed) images are selected, deselect all.
+          // Otherwise, select all selectable images.
+          if (allSelectableAreSelected) {
               return new Set();
           } else {
-              return new Set(filteredImages.map(img => img.id));
+              return new Set(selectableImages.map(img => img.id));
           }
       });
   }, [filteredImages]);
@@ -156,9 +164,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault();
-        if (filteredImages.length > 0) {
-            setSelectedIds(new Set(filteredImages.map(img => img.id)));
-        }
+        handleSelectAll();
         return;
       }
 
@@ -191,7 +197,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filteredImages, deleteConfirmation.isOpen, viewingImage, selectedIds, confirmDelete, cancelDelete, requestDeleteSelected]);
+  }, [filteredImages, deleteConfirmation.isOpen, viewingImage, selectedIds, confirmDelete, cancelDelete, requestDeleteSelected, handleSelectAll]);
 
   const handleDownload = (e: React.MouseEvent, image: GeneratedImage) => {
     e.stopPropagation();
@@ -216,8 +222,10 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   const handleDownloadAll = async () => {
     if (filteredImages.length === 0) return;
     for (const image of filteredImages) {
-        handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
-        await new Promise(r => setTimeout(r, 250));
+        if (image.status === 'completed') {
+            handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
+            await new Promise(r => setTimeout(r, 250));
+        }
     }
   };
 
@@ -240,12 +248,15 @@ const ImageGrid: React.FC<ImageGridProps> = ({
 
   // Use raw images length for checking emptiness vs filtering
   const isEmpty = images.length === 0 && !isLoading;
+  
+  // Calculate total completed images for display
+  const totalCompletedCount = images.filter(img => img.status === 'completed').length;
 
   return (
     <div className="flex-1 h-full relative overflow-hidden flex flex-col">
       <GalleryHeader 
         images={filteredImages}
-        allImagesCount={images.length}
+        allImagesCount={totalCompletedCount}
         selectedIds={selectedIds}
         isLoading={isLoading}
         onSelectAll={handleSelectAll}
@@ -311,3 +322,4 @@ const ImageGrid: React.FC<ImageGridProps> = ({
 };
 
 export default ImageGrid;
+        

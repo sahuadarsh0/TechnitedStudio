@@ -51,9 +51,12 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
   }, []);
 
   const activeFilterCount = (activeResolution ? 1 : 0) + (activeAspectRatio ? 1 : 0);
+  
+  // Calculate counts strictly for completed images
+  const visibleCompletedCount = images.filter(img => img.status === 'completed').length;
 
   return (
-    <div className={`h-14 border-b flex justify-between items-center px-3 md:px-6 backdrop-blur-md z-20 shrink-0 transition-colors duration-300 relative ${isSelectionActive ? 'bg-laserBlue/10 border-laserBlue/30' : 'bg-charcoal/50 border-white/5'}`}>
+    <div className={`h-14 border-b flex justify-between items-center px-3 md:px-6 backdrop-blur-md z-50 shrink-0 transition-colors duration-300 relative ${isSelectionActive ? 'bg-laserBlue/10 border-laserBlue/30' : 'bg-charcoal/50 border-white/5'}`}>
       {isSelectionActive ? (
         // SELECTION MODE HEADER
         <div className="flex items-center w-full justify-between gap-2">
@@ -61,8 +64,8 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
             onClick={onSelectAll}
             className="flex items-center gap-2 text-laserBlue hover:text-white transition-colors mr-auto"
           >
-            <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedIds.size === images.length ? 'bg-laserBlue border-laserBlue' : 'border-laserBlue'}`}>
-              {selectedIds.size === images.length && <CheckIcon className="w-3 h-3 text-black" strokeWidth={3} />}
+            <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedIds.size === visibleCompletedCount && visibleCompletedCount > 0 ? 'bg-laserBlue border-laserBlue' : 'border-laserBlue'}`}>
+              {selectedIds.size === visibleCompletedCount && visibleCompletedCount > 0 && <CheckIcon className="w-3 h-3 text-black" strokeWidth={3} />}
             </div>
             <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">{selectedIds.size} <span className="hidden sm:inline">Selected</span></span>
           </button>
@@ -95,7 +98,7 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
                 <div className="text-[10px] md:text-xs font-mono text-gray-500 uppercase tracking-widest whitespace-nowrap truncate">
                 <span className="hidden xs:inline">Gallery <span className="text-gray-700 mx-2">|</span></span> 
                 <span className="text-white">
-                    {images.length}
+                    {visibleCompletedCount}
                     <span className="hidden sm:inline text-gray-500"> / {allImagesCount}</span>
                     <span className="hidden md:inline"> Assets</span>
                 </span>
@@ -161,7 +164,7 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
                 )}
             </div>
 
-            {images.length > 0 && (
+            {visibleCompletedCount > 0 && (
               <button 
                 onClick={onSelectAll}
                 className="text-[10px] md:text-xs font-bold text-gray-400 hover:text-laserBlue transition-colors uppercase tracking-widest px-2 py-1 rounded hover:bg-white/5 border border-transparent hover:border-white/10 whitespace-nowrap"
@@ -172,7 +175,7 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            <button onClick={onDownloadAll} disabled={isLoading || images.length === 0} className="p-2 text-gray-500 hover:text-laserBlue transition-colors rounded hover:bg-white/5 disabled:opacity-50" title="Download All">
+            <button onClick={onDownloadAll} disabled={isLoading || visibleCompletedCount === 0} className="p-2 text-gray-500 hover:text-laserBlue transition-colors rounded hover:bg-white/5 disabled:opacity-50" title="Download All">
               <DownloadIcon className="w-5 h-5" />
             </button>
             <button onClick={onClearAll} disabled={isLoading} className="p-2 text-gray-500 hover:text-red-500 transition-colors rounded hover:bg-white/5 disabled:opacity-50" title="Delete All">
@@ -193,3 +196,4 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
     </div>
   );
 };
+        
