@@ -21,6 +21,57 @@ export enum AIModel {
   PRO = "gemini-3-pro-image-preview"
 }
 
+export enum LightingStyle {
+  NONE = "Natural / Raw",
+  CINEMATIC = "Cinematic",
+  STUDIO = "Studio (3-Point)",
+  HORROR = "Horror / Dark",
+  AMBIENCE = "Mood / Ambience",
+  NEON = "Neon / Cyberpunk",
+  PRODUCT = "Product (Clean)",
+  GOLDEN = "Golden Hour"
+}
+
+export enum CameraAngle {
+  EYE_LEVEL = "Eye Level",
+  LOW_ANGLE = "Low Angle (Heroic)",
+  HIGH_ANGLE = "High Angle",
+  BIRDS_EYE = "Top Shot (Bird's Eye)",
+  DUTCH = "Dutch Angle (Dynamic)",
+  MACRO = "Macro / Extreme Close-up"
+}
+
+export enum CameraType {
+  NONE = "AI Default",
+  SONY = "Sony Alpha A7R V",
+  IPHONE = "iPhone 15 Pro Max",
+  FILM = "Analog Film (35mm)",
+  LEICA = "Leica M11"
+}
+
+export enum FocusTarget {
+  NONE = "Auto Focus",
+  FACE = "Portrait / Face",
+  PRODUCT = "Product Focus",
+  MODEL_PRODUCT = "Model & Product",
+  HAIR = "Hair Detail",
+  COUPLE = "Couple Portrait",
+  BACKGROUND = "Background / Landscape"
+}
+
+export interface CinematicSettings {
+  cameraType: CameraType;
+  focalLength: string; // "16mm", "35mm", "50mm", "85mm", "200mm", "700mm"
+  angle: CameraAngle;
+  lighting: LightingStyle;
+  focus: FocusTarget; // Added Focus Target
+  zoomDetail: boolean; // "Zoomed In / Hyper Detail"
+  details: {
+    pores: boolean;
+    eyeReflections: boolean;
+  };
+}
+
 export interface GenerationSettings {
   aspectRatio: AspectRatio;
   resolution: Resolution;
@@ -29,6 +80,7 @@ export interface GenerationSettings {
   isImageToImage: boolean;
   enableSounds: boolean;
   googleSearch: boolean;
+  cinematic: CinematicSettings;
 }
 
 export type ImageStatus = 'completed' | 'generating' | 'error';

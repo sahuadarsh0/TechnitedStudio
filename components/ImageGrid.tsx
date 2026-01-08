@@ -242,9 +242,11 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   };
 
   // Navigation Logic
-  const currentIndex = viewingImage ? filteredImages.findIndex(img => img.id === viewingImage.id) : -1;
+  // Filter out generating images for navigation context
+  const navigableImages = filteredImages.filter(img => img.status === 'completed');
+  const currentIndex = viewingImage ? navigableImages.findIndex(img => img.id === viewingImage.id) : -1;
   const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex !== -1 && currentIndex < filteredImages.length - 1;
+  const hasNext = currentIndex !== -1 && currentIndex < navigableImages.length - 1;
 
   // Use raw images length for checking emptiness vs filtering
   const isEmpty = images.length === 0 && !isLoading;
@@ -296,8 +298,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({
         <InspectionModal
           image={viewingImage}
           onClose={() => setViewingImage(null)}
-          onPrev={() => hasPrev && setViewingImage(filteredImages[currentIndex - 1])}
-          onNext={() => hasNext && setViewingImage(filteredImages[currentIndex + 1])}
+          onPrev={() => hasPrev && setViewingImage(navigableImages[currentIndex - 1])}
+          onNext={() => hasNext && setViewingImage(navigableImages[currentIndex + 1])}
           hasPrev={hasPrev}
           hasNext={hasNext}
           onDelete={requestDeleteOne}
@@ -322,4 +324,3 @@ const ImageGrid: React.FC<ImageGridProps> = ({
 };
 
 export default ImageGrid;
-        

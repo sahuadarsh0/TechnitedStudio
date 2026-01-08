@@ -9,6 +9,7 @@ import { ReferenceImageManager } from './control-panel/ReferenceImageManager';
 import { AspectRatioSelector } from './control-panel/AspectRatioSelector';
 import { ResolutionSelector } from './control-panel/ResolutionSelector';
 import { BatchSizeSelector } from './control-panel/BatchSizeSelector';
+import { DirectorsControl } from './control-panel/DirectorsControl';
 
 interface ControlPanelProps {
   settings: GenerationSettings;
@@ -67,6 +68,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             isImageToImage={settings.isImageToImage} 
             isGenerating={isGenerating} 
             onChange={(val) => handleChange('isImageToImage', val)} 
+          />
+          
+          <DirectorsControl 
+            settings={settings.cinematic} 
+            onChange={(cinematic) => handleChange('cinematic', cinematic)}
           />
 
           {settings.isImageToImage && (

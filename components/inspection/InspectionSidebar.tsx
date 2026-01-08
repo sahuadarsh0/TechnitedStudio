@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { GeneratedImage, Resolution, AspectRatio, AIModel } from '../../types';
+import { GeneratedImage, Resolution, AspectRatio, AIModel, CinematicSettings } from '../../types';
 import { ASPECT_RATIOS, MODELS } from '../../constants';
+import { DirectorsControl } from '../control-panel/DirectorsControl';
 
 interface InspectionSidebarProps {
   image: GeneratedImage;
@@ -31,6 +32,11 @@ export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isL
   const handleChangeAspectRatio = (ratio: AspectRatio) => {
     onRegenerate(image, { aspectRatio: ratio });
     onClose();
+  };
+
+  const handleCinematicChange = (newCinematic: CinematicSettings) => {
+      onRegenerate(image, { cinematic: newCinematic });
+      // We don't close immediately here to allow tweaking
   };
 
   return (
@@ -79,8 +85,25 @@ export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isL
             <p className="text-gray-300 text-sm leading-relaxed font-light max-h-32 md:max-h-48 overflow-y-auto custom-scrollbar">{image.prompt}</p>
           </div>
         </div>
+        
+        {/* NEW: Director's Control for Editing */}
+        <DirectorsControl 
+            settings={image.settings.cinematic} 
+            onChange={handleCinematicChange} 
+        />
+        
+        {/* Only show Generate/Apply button if we are in edit mode context, but for sidebar it's auto-apply or re-gen. 
+           We can add a specific button to trigger re-gen if the user changes settings, 
+           or assume the `onRegenerate` call inside the control (which we mapped) handles it.
+           However, onRegenerate in App.tsx triggers immediately. 
+        */}
+        <div className="text-center">
+             <p className="text-[9px] text-gray-600 italic">
+                Modifying Director's settings triggers immediate re-generation.
+             </p>
+        </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
           <div>
             <h4 className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">Resolution</h4>
             <p className="text-white font-medium text-sm flex items-center gap-2">
@@ -97,7 +120,7 @@ export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isL
             <p className="text-white font-medium text-sm">{image.settings.aspectRatio}</p>
           </div>
           
-          <div className="col-span-2 border-t border-white/5 pt-4 mt-2">
+          <div className="col-span-2 mt-2">
             <h4 className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">AI Architecture</h4>
             <p className="text-laserBlue font-mono text-sm tracking-tight">{modelLabel}</p>
           </div>

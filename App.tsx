@@ -16,7 +16,7 @@ import { transcribeAudio } from './services/geminiService';
 import { playSound } from './services/soundService';
 import { getEffectiveApiKey } from './services/apiKeyService';
 import { DEFAULT_SETTINGS } from './constants';
-import { GenerationSettings, GeneratedImage, Resolution } from './types';
+import { GenerationSettings, GeneratedImage, Resolution, CinematicSettings, CameraType, LightingStyle, CameraAngle, FocusTarget } from './types';
 
 export default function App() {
   const [settings, setSettings] = useState<GenerationSettings>(DEFAULT_SETTINGS);
@@ -72,12 +72,87 @@ export default function App() {
     }
   };
 
+  // --- Prompt Alchemy: The Cinematic Engine ---
+  const constructCinematicPrompt = (basePrompt: string, settings: GenerationSettings) => {
+    const c: CinematicSettings = settings.cinematic;
+    const parts = [basePrompt.trim()];
+
+    // Camera Tech
+    if (c.cameraType !== CameraType.NONE) {
+        parts.push(`shot on ${c.cameraType}`);
+    }
+    
+    // Lens
+    parts.push(`${c.focalLength} lens`);
+
+    // Angles
+    if (c.angle !== CameraAngle.EYE_LEVEL) {
+        parts.push(c.angle);
+    }
+
+    // Focus Target Logic - Refined for accuracy
+    switch (c.focus) {
+        case FocusTarget.FACE:
+            parts.push("sharp focus on face", "portrait photography", "detailed eyes", "shallow depth of field f/1.8", "bokeh background");
+            break;
+        case FocusTarget.PRODUCT:
+            parts.push("sharp focus on product", "commercial product photography", "macro details", "isolated subject", "blurred background");
+            break;
+        case FocusTarget.MODEL_PRODUCT:
+            parts.push("sharp focus on model and product", "deep depth of field f/8", "balanced composition", "detailed scene");
+            break;
+        case FocusTarget.HAIR:
+            parts.push("focus on hair texture", "detailed hair strands", "voluminous hair", "studio hair lighting", "hair model photography");
+            break;
+        case FocusTarget.COUPLE:
+            parts.push("portrait of couple", "intimate connection", "focus on both faces", "relationship photography");
+            break;
+        case FocusTarget.BACKGROUND:
+            parts.push("focus on background", "wide angle", "deep depth of field f/16", "hyper-detailed environment", "infinity focus");
+            break;
+        default:
+            // Auto Focus (None)
+            break;
+    }
+
+    // Lighting Logic
+    if (c.lighting === LightingStyle.STUDIO) {
+        parts.push("professional 3-point studio lighting", "rim light", "softbox", "perfect exposure");
+    } else if (c.lighting === LightingStyle.NONE) {
+        parts.push("natural lighting", "available light", "authentic atmosphere");
+    } else {
+        parts.push(`${c.lighting} lighting style`);
+    }
+
+    // Zoom & Details
+    if (c.zoomDetail) {
+        parts.push("extreme close-up", "macro photography", "100mm macro", "hyper-detailed texture");
+    }
+
+    if (c.details.pores) {
+        parts.push("visible skin pores", "natural skin texture", "high frequency skin detail", "subsurface scattering");
+    }
+
+    if (c.details.eyeReflections) {
+        parts.push("highly detailed eyes", "sharp iris texture", "corneal reflections", "catchlights in eyes");
+    }
+
+    // Removed imperfections/moles logic as requested ("Pores are enough")
+
+    // General Quality Tags
+    parts.push("8k resolution", "masterpiece", "ultra-realistic", "award winning photography");
+
+    return parts.join(", ");
+  };
+
   const handleGenerate = async () => {
     setIsSettingsOpen(false);
 
     try {
+      const enhancedPrompt = constructCinematicPrompt(prompt, settings);
+      
       await generate(
-        prompt, 
+        enhancedPrompt, 
         referenceImages.length > 0 ? referenceImages : null, 
         editingImage, 
         (newImages) => {
@@ -97,9 +172,12 @@ export default function App() {
 
   // Immediate regeneration without changing global UI state
   const handleRegenerate = async (image: GeneratedImage, newSettings: Partial<GenerationSettings>) => {
-      const activeSettings: GenerationSettings = { 
-          ...settings, 
-          ...newSettings, 
+      // Merge Settings carefully to include cinematic updates
+      const mergedSettings: GenerationSettings = { 
+          ...image.settings, 
+          ...newSettings,
+          // Handle nested object merge for cinematic if it was passed partially
+          cinematic: newSettings.cinematic ? { ...image.settings.cinematic, ...newSettings.cinematic } : image.settings.cinematic,
           batchSize: 1, // STRICTLY ENFORCE 1 IMAGE
           isImageToImage: true // ALWAYS USE IMG2IMG TO PRESERVE SUBJECT
       };
@@ -107,37 +185,18 @@ export default function App() {
       // Always pass the current image as reference to maintain consistency
       const specificRefs = [image.url];
 
-      // AUTO-ENHANCEMENT FOR UPSCALING/RESHAPING
       let activePrompt = image.prompt;
       
-      const isUpscale = newSettings.resolution === Resolution.RES_4K || newSettings.resolution === Resolution.RES_2K;
-      const isReshape = newSettings.aspectRatio && newSettings.aspectRatio !== image.settings.aspectRatio;
-      
-      if (isUpscale || isReshape) {
-          const generalKeywords = "high resolution, 8k, sharp focus";
-          const appendKeywords = (text: string, phrases: string) => {
-             const existing = text.toLowerCase();
-             const newPhrases = phrases.split(',').map(p => p.trim());
-             let result = text;
-             
-             newPhrases.forEach(phrase => {
-                 if (!existing.includes(phrase.toLowerCase())) {
-                     result += `, ${phrase}`;
-                 }
-             });
-             return result;
-          };
-
-          activePrompt = appendKeywords(activePrompt, generalKeywords);
-      }
+      // Re-construct prompt with new cinematic settings
+      const enhancedPrompt = constructCinematicPrompt(activePrompt, mergedSettings);
 
       try {
         await generate(
-            activePrompt, 
+            enhancedPrompt, 
             specificRefs, 
             null, 
             () => {}, 
-            activeSettings
+            mergedSettings
         );
       } catch (e) {
           console.error(e);
@@ -145,14 +204,12 @@ export default function App() {
   };
 
   const handleCreateVariations = async (image: GeneratedImage) => {
-    // Variations don't block anymore, but maybe limit if too many active? 
-    // Current requirement says queueing is allowed.
-
     const variationSettings: GenerationSettings = {
         ...settings,
         aspectRatio: image.settings.aspectRatio,
         resolution: image.settings.resolution,
         model: image.settings.model,
+        cinematic: image.settings.cinematic, // Inherit cinematic settings
         batchSize: 4, // Generate a batch of 4 variations
         isImageToImage: true // Use source image for compositional consistency
     };
@@ -174,6 +231,10 @@ export default function App() {
 
   const handleStartEdit = (image: GeneratedImage) => {
     startEdit(image);
+    // When editing, we should probably set the global settings to match the image being edited?
+    // Or just let the prompt drive it. 
+    // UX Decision: Don't overwrite global settings to avoid confusing the user if they cancel.
+    // However, the `DirectorsControl` in the Sidebar handles local editing settings.
     setPrompt(""); 
   };
 
