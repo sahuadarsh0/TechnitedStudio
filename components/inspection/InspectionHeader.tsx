@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { CloseIcon } from '../Icons';
 
 interface InspectionHeaderProps {
   onClose: () => void;
@@ -14,7 +15,7 @@ export const InspectionHeader: React.FC<InspectionHeaderProps> = ({ onClose }) =
       </div>
       
       <button onClick={onClose} className="pointer-events-auto p-2 bg-black/40 backdrop-blur-md rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all border border-transparent hover:border-white/20 group">
-        <svg className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>
+        <CloseIcon className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" strokeWidth={1.5} />
       </button>
     </div>
   );

@@ -33,7 +33,7 @@ export const BatchSizeSelector: React.FC<BatchSizeSelectorProps> = ({ batchSize,
            min="1" 
            max="10" 
            step="1" 
-           disabled={isGenerating} 
+           // Removed disabled={isGenerating}
            value={batchSize} 
            onChange={(e) => onChange(parseInt(e.target.value))} 
            className="relative w-full h-6 opacity-0 cursor-pointer z-10" 

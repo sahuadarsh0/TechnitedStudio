@@ -29,7 +29,7 @@ export const ResolutionSelector: React.FC<ResolutionSelectorProps> = ({ selected
           <button
             key={res}
             onClick={() => onChange(res)}
-            disabled={isGenerating || !isSupported}
+            disabled={!isSupported} // Only disabled if model doesn't support it, not isGenerating
             className={`flex-1 py-2.5 rounded-md text-[10px] font-mono tracking-widest transition-all duration-300 disabled:opacity-50 relative overflow-hidden ${
               selectedResolution === res 
                 ? 'text-white font-bold shadow-lg' 

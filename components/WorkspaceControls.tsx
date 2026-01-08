@@ -4,6 +4,7 @@ import { GeneratedImage, GenerationError } from '../types';
 import CommandDock from './CommandDock';
 import OptimizationPanel from './OptimizationPanel';
 import Toast from './Toast';
+import { UndoIcon, RedoIcon } from './Icons';
 
 interface WorkspaceControlsProps {
   prompt: string;
@@ -21,7 +22,7 @@ interface WorkspaceControlsProps {
   hasReference: boolean;
   
   onGenerate: () => void;
-  onStop: () => void;
+  onStop: () => void; // Now acts as Stop All
   onOptimize: () => void;
   onMicClick: () => void;
   onEditAction: (action: 'undo' | 'redo' | 'exit') => void;
@@ -40,24 +41,39 @@ const WorkspaceControls: React.FC<WorkspaceControlsProps> = ({
 
       <div className="relative z-10 max-w-4xl mx-auto p-2 pb-4 md:p-6 md:pb-8 pointer-events-auto flex flex-col gap-3 md:gap-4">
           <div className="flex flex-col md:flex-row justify-center items-end md:items-center min-h-[40px] gap-2 px-2">
-            {editingImage && (
-              <div className="w-full md:w-auto bg-laserPurple/20 border border-laserPurple/50 px-3 py-1.5 rounded-xl text-xs text-laserPurple font-bold uppercase tracking-wider backdrop-blur-md flex items-center justify-between md:justify-start gap-4 shadow-neon-purple animate-fadeIn">
-                <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-laserPurple animate-pulse"></span>
-                    EDITING ACTIVE
-                </span>
-                <div className="flex items-center gap-1 border-l border-laserPurple/30 pl-3">
-                    <button onClick={() => onEditAction('undo')} disabled={historyIndex <= 0} className="p-1.5 hover:bg-laserPurple/20 rounded disabled:opacity-30 transition-colors">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+            
+            {/* Status Indicators Row */}
+            <div className="flex items-center gap-2 w-full md:w-auto">
+                {isGenerating && (
+                    <button 
+                        onClick={onStop}
+                        className="bg-red-500/10 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs text-red-500 font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-2 shadow-neon-red animate-fadeIn hover:bg-red-500/20 transition-colors mr-auto md:mr-0"
+                    >
+                        <span className="w-2 h-2 rounded-sm bg-red-500 animate-pulse"></span>
+                        STOP ALL PROCESSES
                     </button>
-                    <span className="text-[10px] font-mono opacity-50">{historyIndex + 1}/{editHistoryLength}</span>
-                    <button onClick={() => onEditAction('redo')} disabled={historyIndex >= editHistoryLength - 1} className="p-1.5 hover:bg-laserPurple/20 rounded disabled:opacity-30 transition-colors">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" /></svg>
-                    </button>
+                )}
+
+                {editingImage && (
+                <div className="bg-laserPurple/20 border border-laserPurple/50 px-3 py-1.5 rounded-xl text-xs text-laserPurple font-bold uppercase tracking-wider backdrop-blur-md flex items-center justify-between md:justify-start gap-4 shadow-neon-purple animate-fadeIn ml-auto md:ml-0">
+                    <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-laserPurple animate-pulse"></span>
+                        EDITING
+                    </span>
+                    <div className="flex items-center gap-1 border-l border-laserPurple/30 pl-3">
+                        <button onClick={() => onEditAction('undo')} disabled={historyIndex <= 0} className="p-1.5 hover:bg-laserPurple/20 rounded disabled:opacity-30 transition-colors">
+                            <UndoIcon className="w-4 h-4" />
+                        </button>
+                        <span className="text-[10px] font-mono opacity-50">{historyIndex + 1}/{editHistoryLength}</span>
+                        <button onClick={() => onEditAction('redo')} disabled={historyIndex >= editHistoryLength - 1} className="p-1.5 hover:bg-laserPurple/20 rounded disabled:opacity-30 transition-colors">
+                            <RedoIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <button onClick={() => onEditAction('exit')} className="hover:text-white border-l border-laserPurple/50 pl-3 ml-1 transition-colors">EXIT</button>
                 </div>
-                <button onClick={() => onEditAction('exit')} className="hover:text-white border-l border-laserPurple/50 pl-3 ml-1 transition-colors">EXIT</button>
-              </div>
-            )}
+                )}
+            </div>
+
             {error && (
               <Toast 
                 message={error.message} 

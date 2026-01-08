@@ -17,6 +17,7 @@ interface ImageGridProps {
   onRegenerate: (image: GeneratedImage, newSettings: Partial<GeneratedImage['settings']>) => void;
   onCreateVariations: (image: GeneratedImage) => void;
   onOpenSettings: () => void;
+  onStopImage?: (id: string) => void; // Added prop
 }
 
 const ImageGrid: React.FC<ImageGridProps> = ({ 
@@ -25,10 +26,11 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   isLoading, 
   onRemoveImages,
   onClearAll,
-  loadingCount = 1,
+  loadingCount = 0,
   onRegenerate,
   onCreateVariations,
-  onOpenSettings
+  onOpenSettings,
+  onStopImage
 }) => {
   const [viewingImage, setViewingImage] = useState<GeneratedImage | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -220,6 +222,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   };
 
   const handleImageClick = (image: GeneratedImage) => {
+      // Prevent opening inspector for generating images
+      if (image.status === 'generating') return;
       setViewingImage(image);
   };
 
@@ -234,8 +238,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex !== -1 && currentIndex < filteredImages.length - 1;
 
-  const skeletonCount = Math.max(1, loadingCount);
-  const isEmpty = filteredImages.length === 0 && !isLoading;
+  // Use raw images length for checking emptiness vs filtering
+  const isEmpty = images.length === 0 && !isLoading;
 
   return (
     <div className="flex-1 h-full relative overflow-hidden flex flex-col">
@@ -266,11 +270,12 @@ const ImageGrid: React.FC<ImageGridProps> = ({
             <GridContent 
                 images={filteredImages}
                 isLoading={isLoading}
-                skeletonCount={skeletonCount}
+                skeletonCount={0} // Logic moved to useImageGeneration placeholders
                 selectedIds={selectedIds}
                 onToggleSelection={toggleSelection}
                 onImageClick={handleImageClick}
                 onDeleteOne={requestDeleteOne}
+                onStop={onStopImage}
             />
         )}
       </div>

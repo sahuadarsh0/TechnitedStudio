@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GeneratedImage, Resolution, AspectRatio } from '../../types';
 import { RESOLUTIONS, ASPECT_RATIOS } from '../../constants';
+import { CheckIcon, DownloadIcon, TrashIcon, SettingsIcon, FilterIcon } from '../Icons';
 
 interface GalleryHeaderProps {
   images: GeneratedImage[];
@@ -61,18 +62,18 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
             className="flex items-center gap-2 text-laserBlue hover:text-white transition-colors mr-auto"
           >
             <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedIds.size === images.length ? 'bg-laserBlue border-laserBlue' : 'border-laserBlue'}`}>
-              {selectedIds.size === images.length && <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+              {selectedIds.size === images.length && <CheckIcon className="w-3 h-3 text-black" strokeWidth={3} />}
             </div>
             <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">{selectedIds.size} <span className="hidden sm:inline">Selected</span></span>
           </button>
 
           <div className="flex items-center gap-2">
             <button onClick={onDownloadSelected} className="flex items-center justify-center w-9 h-9 md:w-auto md:px-3 md:py-1.5 bg-laserBlue/20 text-laserBlue rounded hover:bg-laserBlue hover:text-black transition-all border border-laserBlue/30">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              <DownloadIcon className="w-5 h-5" />
               <span className="hidden md:inline ml-2 text-xs font-bold uppercase tracking-wider">Download</span>
             </button>
             <button onClick={onDeleteSelected} className="flex items-center justify-center w-9 h-9 md:w-auto md:px-3 md:py-1.5 bg-red-500/10 text-red-500 rounded hover:bg-red-500 hover:text-white transition-all border border-red-500/30">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              <TrashIcon className="w-5 h-5" />
               <span className="hidden md:inline ml-2 text-xs font-bold uppercase tracking-wider">Delete</span>
             </button>
             
@@ -82,7 +83,7 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
                 className="md:hidden p-2 text-gray-400 hover:text-white transition-colors bg-white/5 rounded border border-white/5 ml-1"
                 title="Settings"
              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                <SettingsIcon className="w-5 h-5" />
              </button>
           </div>
         </div>
@@ -107,7 +108,7 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
                   onClick={() => setIsFilterOpen(!isFilterOpen)}
                   className={`flex items-center gap-1.5 px-2 py-1.5 rounded border transition-all uppercase tracking-widest text-[10px] md:text-xs font-bold ${isFilterOpen || activeFilterCount > 0 ? 'bg-white/10 border-white/20 text-white' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}
                 >
-                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                   <FilterIcon className="w-3.5 h-3.5" />
                    <span className="hidden sm:inline">Filters</span>
                    {activeFilterCount > 0 && (
                      <span className="flex items-center justify-center w-4 h-4 bg-laserBlue text-black rounded-full text-[9px]">{activeFilterCount}</span>
@@ -172,10 +173,10 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
           
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <button onClick={onDownloadAll} disabled={isLoading || images.length === 0} className="p-2 text-gray-500 hover:text-laserBlue transition-colors rounded hover:bg-white/5 disabled:opacity-50" title="Download All">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              <DownloadIcon className="w-5 h-5" />
             </button>
             <button onClick={onClearAll} disabled={isLoading} className="p-2 text-gray-500 hover:text-red-500 transition-colors rounded hover:bg-white/5 disabled:opacity-50" title="Delete All">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              <TrashIcon className="w-5 h-5" />
             </button>
             
             {/* Integrated Settings Button (Mobile) */}
@@ -184,7 +185,7 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
               className="md:hidden p-2 text-gray-400 hover:text-white transition-colors bg-white/5 rounded border border-white/5 ml-1"
               title="Settings"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+              <SettingsIcon className="w-5 h-5" />
             </button>
           </div>
         </>

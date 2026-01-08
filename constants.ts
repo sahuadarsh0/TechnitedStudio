@@ -11,15 +11,15 @@ export const MODELS = [
 
 export const DEFAULT_SETTINGS = {
   aspectRatio: AspectRatio.SQUARE,
-  resolution: Resolution.RES_1K,
+  resolution: Resolution.RES_4K, // Default to 4K
   batchSize: 1,
-  model: AIModel.PRO,
-  isImageToImage: false,
+  model: AIModel.PRO, // Default to Pro model
+  isImageToImage: false, // Default to Text workflow
   enableSounds: true,
   googleSearch: false,
 };
 
 // Internal API Constants
-export const MODEL_TRANSCRIPTION = 'gemini-3-flash-preview';
+export const MODEL_TRANSCRIPTION = 'gemini-3-flash-preview'; // Updated to working multimodal model for audio
 export const MODEL_OPTIMIZATION = 'gemini-3-flash-preview';
-export const MODEL_EDITING = 'gemini-2.5-flash-image'; // Editing typically uses the faster model or specific editing endpoint logic
+export const MODEL_EDITING = 'gemini-2.5-flash-image';

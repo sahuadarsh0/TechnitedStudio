@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useHoverPreview } from '../../hooks/useHoverPreview';
+import { CloseIcon, PlusIcon } from '../Icons';
 
 interface ReferenceImageManagerProps {
   images: string[];
@@ -31,7 +32,7 @@ const ReferenceThumbnail = ({
                 onClick={(e) => { e.stopPropagation(); onRemove(index); }}
                 className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
             >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <CloseIcon className="w-3 h-3" />
             </button>
         </div>
     );
@@ -57,7 +58,7 @@ export const ReferenceImageManager: React.FC<ReferenceImageManagerProps> = ({ im
           <label className="aspect-square rounded-lg border border-dashed border-gray-700 hover:border-laserPurple hover:bg-laserPurple/5 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-laserPurple/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div className="w-8 h-8 rounded-full border border-gray-600 group-hover:border-laserPurple group-hover:scale-110 flex items-center justify-center mb-2 transition-all relative z-10">
-              <svg className="w-4 h-4 text-gray-400 group-hover:text-laserPurple" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              <PlusIcon className="w-4 h-4 text-gray-400 group-hover:text-laserPurple" />
             </div>
             <span className="text-[8px] text-gray-500 group-hover:text-laserPurple font-mono uppercase tracking-widest relative z-10">UPLOAD</span>
             <input 

@@ -18,7 +18,7 @@ const getCtx = () => {
   return audioCtx;
 };
 
-export const playSound = (type: 'click' | 'start' | 'success', enabled: boolean = true) => {
+export const playSound = (type: 'click' | 'start' | 'success' | 'error', enabled: boolean = true) => {
   if (!enabled) return;
   
   try {
@@ -43,7 +43,7 @@ export const playSound = (type: 'click' | 'start' | 'success', enabled: boolean 
         osc.frequency.setValueAtTime(800, t);
         osc.frequency.exponentialRampToValueAtTime(1200, t + 0.1);
         
-        gain.gain.setValueAtTime(0.15, t); // Increased from 0.05
+        gain.gain.setValueAtTime(0.15, t); 
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
         
         osc.start(t);
@@ -55,7 +55,7 @@ export const playSound = (type: 'click' | 'start' | 'success', enabled: boolean 
         osc.frequency.linearRampToValueAtTime(400, t + 0.2);
         
         gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.2, t + 0.05); // Increased from 0.08
+        gain.gain.linearRampToValueAtTime(0.2, t + 0.05); 
         gain.gain.linearRampToValueAtTime(0, t + 0.2);
         
         osc.start(t);
@@ -73,12 +73,24 @@ export const playSound = (type: 'click' | 'start' | 'success', enabled: boolean 
             
             const start = t + i * 0.08;
             g.gain.setValueAtTime(0, start);
-            g.gain.linearRampToValueAtTime(0.15, start + 0.05); // Increased from 0.05
+            g.gain.linearRampToValueAtTime(0.15, start + 0.05); 
             g.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
             
             o.start(start);
             o.stop(start + 0.6);
          });
+    } else if (type === 'error') {
+        // System Failure / Error Tone
+        // Descending sawtooth for a harsh, tech-fail sound
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, t);
+        osc.frequency.exponentialRampToValueAtTime(50, t + 0.4);
+        
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+        
+        osc.start(t);
+        osc.stop(t + 0.4);
     }
   } catch (e) {
     console.warn("Sound playback prevented:", e);

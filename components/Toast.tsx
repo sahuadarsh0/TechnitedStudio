@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { ErrorIcon, SuccessIcon, InfoIcon } from './Icons';
 
 export type ToastType = 'error' | 'success' | 'info';
 
@@ -36,21 +37,9 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 5000 }
   };
 
   const icons = {
-    error: (
-      <svg className="w-5 h-5 text-red-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    success: (
-      <svg className="w-5 h-5 text-green-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    info: (
-      <svg className="w-5 h-5 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    )
+    error: <ErrorIcon className="w-5 h-5 text-red-200" />,
+    success: <SuccessIcon className="w-5 h-5 text-green-200" />,
+    info: <InfoIcon className="w-5 h-5 text-blue-200" />
   };
 
   return (

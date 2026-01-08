@@ -31,6 +31,8 @@ export interface GenerationSettings {
   googleSearch: boolean;
 }
 
+export type ImageStatus = 'completed' | 'generating' | 'error';
+
 export interface GeneratedImage {
   id: string;
   url: string;
@@ -39,6 +41,8 @@ export interface GeneratedImage {
   settings: GenerationSettings;
   sources?: { title: string; uri: string }[];
   generationTime?: number;
+  status?: ImageStatus; // Added to track active generation state
+  error?: string;
 }
 
 export interface OptimizationResponse {

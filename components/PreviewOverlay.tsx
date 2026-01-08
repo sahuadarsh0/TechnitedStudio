@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useHoverPreviewContext } from '../contexts/HoverPreviewContext';
+import { DocumentIcon } from './Icons';
 
 const PreviewOverlay: React.FC = () => {
   const { previewData } = useHoverPreviewContext();
@@ -78,7 +79,7 @@ const PreviewOverlay: React.FC = () => {
                 {previewData.prompt && (
                     <>
                         <div className="flex items-center gap-2 mb-1 opacity-60">
-                             <svg className="w-3 h-3 text-laserBlue" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
+                             <DocumentIcon className="w-3 h-3 text-laserBlue" />
                              <h4 className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Source Prompt</h4>
                         </div>
                         <p className="text-sm text-gray-200 line-clamp-2 font-light tracking-wide text-shadow-sm opacity-90">{previewData.prompt}</p>

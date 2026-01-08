@@ -30,8 +30,8 @@ export default function App() {
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
   const { 
-    images, isGenerating, pendingCount, error, showSuccessFlash, 
-    generate, stop, removeImages, clearAll, clearError, updateImages, prependImage 
+    images, isGenerating, error, showSuccessFlash, 
+    generate, stopAll, stopImage, removeImages, clearAll, clearError, updateImages, prependImage 
   } = useImageGeneration({ settings });
 
   const {
@@ -108,17 +108,13 @@ export default function App() {
       const specificRefs = [image.url];
 
       // AUTO-ENHANCEMENT FOR UPSCALING/RESHAPING
-      // Minimal interference to preserve subject identity while boosting technical quality.
       let activePrompt = image.prompt;
       
       const isUpscale = newSettings.resolution === Resolution.RES_4K || newSettings.resolution === Resolution.RES_2K;
       const isReshape = newSettings.aspectRatio && newSettings.aspectRatio !== image.settings.aspectRatio;
       
       if (isUpscale || isReshape) {
-          // Only add pure resolution/clarity keywords.
           const generalKeywords = "high resolution, 8k, sharp focus";
-          
-          // Helper to append unique keywords intelligently
           const appendKeywords = (text: string, phrases: string) => {
              const existing = text.toLowerCase();
              const newPhrases = phrases.split(',').map(p => p.trim());
@@ -149,7 +145,8 @@ export default function App() {
   };
 
   const handleCreateVariations = async (image: GeneratedImage) => {
-    if (isGenerating) return;
+    // Variations don't block anymore, but maybe limit if too many active? 
+    // Current requirement says queueing is allowed.
 
     const variationSettings: GenerationSettings = {
         ...settings,
@@ -160,7 +157,6 @@ export default function App() {
         isImageToImage: true // Use source image for compositional consistency
     };
 
-    // Use the image itself as the reference to ensure variations are grounded in the source
     const specificRefs = [image.url];
 
     try {
@@ -209,14 +205,11 @@ export default function App() {
       setReferenceImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // If no key is found, show the mandatory key input modal directly
   if (!hasKey) {
       return (
         <div className="h-safe-screen w-full relative bg-[#050505] flex items-center justify-center overflow-hidden">
-             {/* Background Effects */}
              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-laserBlue/5 via-transparent to-transparent animate-pulse-fast"></div>
              
-             {/* Tech Grid Overlay */}
              <div 
                className="absolute inset-0 pointer-events-none opacity-20" 
                style={{ 
@@ -227,7 +220,7 @@ export default function App() {
 
              <ApiKeySettingsModal 
                 isOpen={true}
-                onClose={() => {}} // Mandatory mode, no close
+                onClose={() => {}} 
                 onSuccess={() => {
                     setHasKey(true);
                     setIsKeyModalOpen(false);
@@ -265,13 +258,13 @@ export default function App() {
         <ImageGrid 
           images={images} 
           isLoading={isGenerating}
-          loadingCount={isGenerating ? pendingCount : 0}
           onImageClick={handleStartEdit}
           onRemoveImages={removeImages}
           onClearAll={clearAll}
           onRegenerate={handleRegenerate}
           onCreateVariations={handleCreateVariations}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onStopImage={stopImage} // Pass the individual stop handler
         />
 
         <WorkspaceControls 
@@ -289,7 +282,7 @@ export default function App() {
           error={error}
           hasReference={referenceImages.length > 0}
           onGenerate={handleGenerate}
-          onStop={stop}
+          onStop={stopAll} // Now maps to Stop All
           onOptimize={() => optimize(prompt, setPrompt)}
           onMicClick={handleMicClick}
           onEditAction={handleEditAction}
@@ -299,7 +292,6 @@ export default function App() {
       </div>
       <PreviewOverlay />
       
-      {/* Settings Modal (Global access if needed) */}
       <ApiKeySettingsModal 
           isOpen={isKeyModalOpen}
           onClose={() => setIsKeyModalOpen(false)}

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { AspectRatio } from '../../types';
 import { ASPECT_RATIOS } from '../../constants';
+import { ChevronDownIcon } from '../Icons';
 
 interface AspectRatioSelectorProps {
   selectedRatio: AspectRatio;
@@ -37,8 +38,8 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({ select
       <div className="relative">
           <button
             onClick={() => setIsAspectRatioMenuOpen(!isAspectRatioMenuOpen)}
-            disabled={isGenerating}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-all duration-300 disabled:opacity-50 group bg-black/40 ${isAspectRatioMenuOpen ? 'border-laserBlue/50 shadow-[0_0_10px_rgba(0,240,255,0.15)] ring-1 ring-laserBlue/20' : 'border-white/10 hover:border-white/30 hover:bg-white/5'}`}
+            // Removed disabled={isGenerating}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-all duration-300 group bg-black/40 ${isAspectRatioMenuOpen ? 'border-laserBlue/50 shadow-[0_0_10px_rgba(0,240,255,0.15)] ring-1 ring-laserBlue/20' : 'border-white/10 hover:border-white/30 hover:bg-white/5'}`}
           >
               <div className="flex items-center gap-3">
                    <div className={`flex items-center justify-center w-6 h-6 rounded bg-white/5 border ${isAspectRatioMenuOpen ? 'border-laserBlue text-laserBlue' : 'border-white/10 text-gray-500 group-hover:text-gray-300'}`}>
@@ -48,9 +49,7 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({ select
                        <span className={`text-xs font-mono tracking-wider font-bold ${isAspectRatioMenuOpen ? 'text-white' : 'text-gray-300'}`}>{selectedRatio}</span>
                    </div>
               </div>
-              <svg className={`w-4 h-4 text-gray-500 transition-transform duration-300 ${isAspectRatioMenuOpen ? 'rotate-180 text-white' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              <ChevronDownIcon className={`w-4 h-4 text-gray-500 transition-transform duration-300 ${isAspectRatioMenuOpen ? 'rotate-180 text-white' : ''}`} />
           </button>
           
           {isAspectRatioMenuOpen && (
