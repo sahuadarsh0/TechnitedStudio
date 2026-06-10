@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { CinematicSettings, CameraType, LightingStyle, CameraAngle, FocusTarget } from '../../types';
-import { CAMERA_TYPES, LIGHTING_STYLES, CAMERA_ANGLES, FOCAL_LENGTHS, FOCUS_TARGETS } from '../../constants';
+import { CinematicSettings, CameraType, LightingStyle, CameraAngle, FocusTarget, Aperture } from '../../types';
+import { CAMERA_TYPES, LIGHTING_STYLES, CAMERA_ANGLES, FOCAL_LENGTHS, FOCUS_TARGETS, APERTURES } from '../../constants';
 import { CameraIcon, ChevronDownIcon, SettingsIcon, EyeIcon, BoltIcon } from '../Icons';
 
 interface DirectorsControlProps {
@@ -37,6 +37,7 @@ export const DirectorsControl: React.FC<DirectorsControlProps> = ({ settings, on
       if (settings.angle !== CameraAngle.EYE_LEVEL) count++;
       if (settings.focus !== FocusTarget.NONE) count++;
       if (settings.lighting !== LightingStyle.NONE) count++;
+      if (settings.aperture !== Aperture.NONE) count++;
     }
     if (tab === 'film') {
       if (settings.zoomDetail) count++;
@@ -229,6 +230,31 @@ export const DirectorsControl: React.FC<DirectorsControlProps> = ({ settings, on
                                 </select>
                             </div>
                         </div>
+
+                        {/* Aperture / Depth of Field */}
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-mono text-gray-500 uppercase tracking-widest" title="Control depth of field. Wide = creamy background blur, Deep = everything sharp.">Aperture</label>
+                            <div className="grid grid-cols-4 gap-1.5">
+                                {APERTURES.map(ap => {
+                                    const isSelected = settings.aperture === ap;
+                                    const short = ap === Aperture.NONE ? "Auto" : ap.split(' ')[0];
+                                    return (
+                                        <button
+                                            key={ap}
+                                            onClick={() => update('aperture', ap)}
+                                            title={ap}
+                                            className={`py-2 rounded text-[9px] font-mono transition-all border ${
+                                                isSelected
+                                                ? 'bg-laserBlue/20 border-laserBlue text-white shadow-neon'
+                                                : 'bg-black/40 border-white/5 text-gray-500 hover:border-white/20 hover:text-white'
+                                            }`}
+                                        >
+                                            {short}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -300,6 +326,7 @@ export const DirectorsControl: React.FC<DirectorsControlProps> = ({ settings, on
                             angle: CameraAngle.EYE_LEVEL,
                             lighting: LightingStyle.NONE,
                             focus: FocusTarget.NONE,
+                            aperture: Aperture.NONE,
                             zoomDetail: false,
                             details: { pores: false, eyeReflections: false }
                         })}

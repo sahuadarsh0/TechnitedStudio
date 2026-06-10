@@ -1,5 +1,6 @@
 
 import { GeneratedImage, GenerationSettings } from "../types";
+import { uuid } from "./uuid";
 
 export const extractImageFromResponse = (
     response: any, 
@@ -39,7 +40,7 @@ export const extractImageFromResponse = (
   }
 
   return {
-    id: crypto.randomUUID(),
+    id: uuid(),
     url: imageUrl,
     prompt: prompt,
     timestamp: Date.now(),

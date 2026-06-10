@@ -1,5 +1,6 @@
 
 export enum AspectRatio {
+  AUTO = "auto",
   SQUARE = "1:1",
   PORTRAIT = "3:4",
   LANDSCAPE = "4:3",
@@ -17,8 +18,8 @@ export enum Resolution {
 }
 
 export enum AIModel {
-  FLASH = "gemini-2.5-flash-image",
-  PRO = "gemini-3-pro-image-preview"
+  FLASH = "gemini-3.1-flash-image",
+  PRO = "gemini-3-pro-image"
 }
 
 export enum LightingStyle {
@@ -46,7 +47,18 @@ export enum CameraType {
   SONY = "Sony Alpha A7R V",
   IPHONE = "iPhone 15 Pro Max",
   FILM = "Analog Film (35mm)",
-  LEICA = "Leica M11"
+  LEICA = "Leica M11",
+  ARRI = "ARRI Alexa (Cinema)",
+  HASSELBLAD = "Hasselblad (Medium Format)",
+  FILM_16MM = "Classic 16mm Film",
+  FILM_70MM = "Grand Format 70mm Film"
+}
+
+export enum Aperture {
+  NONE = "Auto Aperture",
+  WIDE = "f/1.4 (Shallow DoF)",
+  BALANCED = "f/4 (Balanced)",
+  DEEP = "f/11 (Deep Focus)"
 }
 
 export enum FocusTarget {
@@ -65,6 +77,7 @@ export interface CinematicSettings {
   angle: CameraAngle;
   lighting: LightingStyle;
   focus: FocusTarget; // Added Focus Target
+  aperture: Aperture; // Depth-of-field control
   zoomDetail: boolean; // "Zoomed In / Hyper Detail"
   details: {
     pores: boolean;
@@ -80,6 +93,7 @@ export interface GenerationSettings {
   isImageToImage: boolean;
   enableSounds: boolean;
   googleSearch: boolean;
+  consistencyLock: boolean;
   cinematic: CinematicSettings;
 }
 
@@ -95,6 +109,7 @@ export interface GeneratedImage {
   generationTime?: number;
   status?: ImageStatus; // Added to track active generation state
   error?: string;
+  favorite?: boolean; // Starred / favorited by the user
 }
 
 export interface OptimizationResponse {

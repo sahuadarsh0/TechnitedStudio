@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GeneratedImage } from '../../types';
 import { useHoverPreview } from '../../hooks/useHoverPreview';
-import { CheckIcon, TrashIcon } from '../Icons';
+import { CheckIcon, TrashIcon, StarIcon, ErrorIcon } from '../Icons';
 
 interface ImageCardProps {
   image: GeneratedImage;
@@ -11,6 +11,8 @@ interface ImageCardProps {
   onClick: (image: GeneratedImage) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
   onStop?: (id: string) => void; // Added for stopping generation
+  onToggleFavorite?: (id: string) => void;
+  onRetry?: (id: string) => void;
 }
 
 export const ImageCard: React.FC<ImageCardProps> = ({ 
@@ -19,7 +21,9 @@ export const ImageCard: React.FC<ImageCardProps> = ({
   onToggleSelection, 
   onClick, 
   onDelete,
-  onStop
+  onStop,
+  onToggleFavorite,
+  onRetry
 }) => {
   const isGenerating = image.status === 'generating';
   const [elapsed, setElapsed] = useState(0);
@@ -112,13 +116,46 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       );
   }
 
+  // --- ERROR STATE (retry card) ---
+  if (image.status === 'error') {
+    return (
+      <div className="relative aspect-square rounded-xl overflow-hidden border border-red-500/30 bg-red-500/5 flex flex-col items-center justify-center text-center p-4 animate-fadeIn">
+        <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mb-3">
+          <ErrorIcon className="w-5 h-5 text-red-400" />
+        </div>
+        <p className="text-[10px] text-red-300/90 font-mono leading-snug mb-3 line-clamp-3">{image.error || 'Generation failed'}</p>
+        <div className="flex items-center gap-2">
+          {onRetry && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRetry(image.id); }}
+              className="px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-500/40 text-red-200 hover:bg-red-500/25 text-[10px] font-bold uppercase tracking-wider transition-colors"
+            >
+              Retry
+            </button>
+          )}
+          <button
+            onClick={(e) => onDelete(e, image.id)}
+            aria-label="Dismiss failed generation"
+            className="p-1.5 rounded-lg bg-black/40 border border-white/10 text-gray-400 hover:text-white transition-colors"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // --- COMPLETED STATE ---
   return (
     <div 
       onClick={() => onClick(image)} 
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`group relative aspect-square bg-gray-900 rounded-xl overflow-hidden cursor-pointer border transition-all duration-300 ${isSelected ? 'border-laserBlue shadow-neon ring-1 ring-laserBlue/30' : 'border-white/5 hover:border-laserBlue/50 hover:shadow-neon'}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open image: ${image.prompt.slice(0, 80)}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(image); } }}
+      className={`group relative aspect-square bg-gray-900 rounded-xl overflow-hidden cursor-pointer border transition-all duration-300 animate-fadeIn focus:outline-none focus-visible:ring-2 focus-visible:ring-laserBlue/70 ${isSelected ? 'border-laserBlue shadow-neon ring-1 ring-laserBlue/30' : 'border-white/5 hover:border-laserBlue/50 hover:shadow-neon'}`}
     >
       {/* Checkbox Overlay */}
       <div 
@@ -130,16 +167,34 @@ export const ImageCard: React.FC<ImageCardProps> = ({
         </div>
       </div>
 
-      {/* Top Right: Individual Delete */}
-      <button 
-        onClick={(e) => onDelete(e, image.id)}
-        className="absolute top-2 right-2 z-30 p-1.5 bg-black/60 hover:bg-red-500 rounded-md text-white/70 hover:text-white opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-lg border border-white/10 hover:border-red-500/50"
-        title="Delete Image"
-      >
-        <TrashIcon className="w-4 h-4" />
-      </button>
+      {/* Top Right: Favorite + Delete */}
+      <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
+        {onToggleFavorite && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite(image.id); }}
+            aria-label={image.favorite ? 'Remove from favorites' : 'Add to favorites'}
+            aria-pressed={!!image.favorite}
+            className={`p-1.5 rounded-md backdrop-blur-sm shadow-lg border transition-all ${
+              image.favorite
+                ? 'bg-amber-400/20 border-amber-400/50 text-amber-300 opacity-100'
+                : 'bg-black/60 border-white/10 text-white/70 opacity-0 group-hover:opacity-100 hover:text-amber-300 hover:border-amber-400/40'
+            }`}
+            title={image.favorite ? 'Favorited' : 'Favorite'}
+          >
+            <StarIcon className="w-4 h-4" filled={!!image.favorite} />
+          </button>
+        )}
+        <button 
+          onClick={(e) => onDelete(e, image.id)}
+          aria-label="Delete image"
+          className="p-1.5 bg-black/60 hover:bg-red-500 rounded-md text-white/70 hover:text-white opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-lg border border-white/10 hover:border-red-500/50"
+          title="Delete Image"
+        >
+          <TrashIcon className="w-4 h-4" />
+        </button>
+      </div>
 
-      <img src={image.url} alt="Asset" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 relative z-0" loading="lazy"/>
+      <img src={image.url} alt={image.prompt.slice(0, 120) || 'Generated asset'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 relative z-0" loading="lazy"/>
       
       {/* Selected Overlay Highlight */}
       {isSelected && <div className="absolute inset-0 bg-laserBlue/10 pointer-events-none z-10"></div>}

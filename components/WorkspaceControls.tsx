@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { GeneratedImage, GenerationError } from '../types';
+import { PromptHistoryEntry } from '../services/presetService';
 import CommandDock from './CommandDock';
 import OptimizationPanel from './OptimizationPanel';
 import Toast from './Toast';
@@ -20,6 +21,9 @@ interface WorkspaceControlsProps {
   historyIndex: number;
   error: GenerationError | null;
   hasReference: boolean;
+  promptHistory?: PromptHistoryEntry[];
+  onSelectHistory?: (prompt: string) => void;
+  onDeleteHistory?: (id: string) => void;
   
   onGenerate: () => void;
   onStop: () => void; // Now acts as Stop All
@@ -33,6 +37,7 @@ interface WorkspaceControlsProps {
 const WorkspaceControls: React.FC<WorkspaceControlsProps> = ({
   prompt, setPrompt, isGenerating, isOptimizing, isRecording, isProcessingAudio,
   optimizationReason, optimizationSources, editingImage, editHistoryLength, historyIndex, error, hasReference,
+  promptHistory, onSelectHistory, onDeleteHistory,
   onGenerate, onStop, onOptimize, onMicClick, onEditAction, onClearError, onClearOptimization
 }) => {
   return (
@@ -97,6 +102,9 @@ const WorkspaceControls: React.FC<WorkspaceControlsProps> = ({
             onMicClick={onMicClick}
             isEditing={!!editingImage}
             hasReference={hasReference}
+            promptHistory={promptHistory}
+            onSelectHistory={onSelectHistory}
+            onDeleteHistory={onDeleteHistory}
           />
 
           <OptimizationPanel 

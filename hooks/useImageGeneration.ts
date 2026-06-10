@@ -3,6 +3,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { GeneratedImage, GenerationSettings, GenerationError } from '../types';
 import { generateImages, editImage } from '../services/imageService';
 import { playSound } from '../services/soundService';
+import { parseError } from '../services/errorService';
+import { uuid } from '../services/uuid';
 import { loadImagesFromStorage, saveImageToStorage, clearImagesFromStorage, deleteImagesFromStorage } from '../services/storageService';
 
 interface UseImageGenerationProps {
@@ -32,34 +34,6 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
     };
     loadImages();
   }, []);
-
-  const parseError = (err: any): GenerationError => {
-    let message = "An unexpected error occurred.";
-    let code = "UNKNOWN";
-    const errString = err.message || err.toString();
-
-    if (errString.includes('Requested entity was not found') || errString.includes('404')) {
-       message = "API Key not found or expired. Please reconnect.";
-       code = "API_KEY_EXPIRED";
-    } else if (errString.includes('403') || errString.includes('permission')) {
-       message = "Access denied. Check your API Key permissions or billing.";
-       code = "PERMISSION_DENIED";
-    } else if (errString.includes('429') || errString.includes('quota') || errString.includes('exhausted')) {
-       message = "Service quota exceeded. Please try again later.";
-       code = "QUOTA_EXCEEDED";
-    } else if (errString.includes('500') || errString.includes('internal')) {
-       message = "Google AI service internal error. Please try again.";
-       code = "SERVER_ERROR";
-    } else if (errString.includes('SAFETY_BLOCK') || errString.includes('safety')) {
-       message = "Generation blocked by safety filters. Please adjust your prompt.";
-       code = "SAFETY_BLOCK";
-    } else if (errString.includes('ABORTED') || errString.includes('user aborted')) {
-        message = "Generation stopped.";
-        code = "ABORTED";
-    }
-
-    return { message, code };
-  };
 
   const stopImage = useCallback((id: string) => {
       const controller = activeControllers.current.get(id);
@@ -104,7 +78,7 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
     // Create Placeholders
     const newPlaceholders: GeneratedImage[] = [];
     for (let i = 0; i < count; i++) {
-        const tempId = crypto.randomUUID();
+        const tempId = uuid();
         const placeholder: GeneratedImage = {
             id: tempId,
             url: '', // Empty URL for loading state
@@ -174,15 +148,17 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
             console.error(`Generation failed for ${placeholder.id}`, err);
             const parsed = parseError(err);
             
-            // Remove the placeholder on error or mark as error? 
-            // UX choice: Remove is cleaner for "try again", Error state shows what happened.
-            // Let's remove for now to keep grid clean, but set global error.
-            setImages(prev => prev.filter(img => img.id !== placeholder.id));
-            
-            // Only set global error if it's not a simple abort
-            if (parsed.code !== 'ABORTED') {
-                 setError(parsed);
-                 playSound('error', activeSettings.enableSounds);
+            if (parsed.code === 'ABORTED') {
+                // User aborted: remove the placeholder cleanly.
+                setImages(prev => prev.filter(img => img.id !== placeholder.id));
+            } else {
+                // Keep the placeholder as an error card so the user can retry.
+                setImages(prev => prev.map(img => img.id === placeholder.id
+                    ? { ...img, status: 'error' as const, error: parsed.message }
+                    : img
+                ));
+                setError(parsed);
+                playSound('error', activeSettings.enableSounds);
             }
             if (parsed.code === 'API_KEY_EXPIRED') throw new Error('API_KEY_EXPIRED');
         } finally {
@@ -216,6 +192,110 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
 
   const clearError = () => setError(null);
   const updateImages = (newImageList: GeneratedImage[]) => setImages(newImageList);
+
+  // Run an arbitrary edit producer with a visible generating placeholder + error card.
+  const runEdit = useCallback(async (
+    seed: GeneratedImage,
+    producer: (signal: AbortSignal) => Promise<GeneratedImage[]>
+  ) => {
+    const tempId = uuid();
+    const controller = new AbortController();
+    activeControllers.current.set(tempId, controller);
+    setActiveCount(prev => prev + 1);
+    setError(null);
+
+    const placeholder: GeneratedImage = {
+      id: tempId,
+      url: '',
+      prompt: seed.prompt,
+      timestamp: Date.now(),
+      settings: seed.settings,
+      status: 'generating',
+    };
+    setImages(prev => [placeholder, ...prev]);
+
+    try {
+      const results = await producer(controller.signal);
+      if (controller.signal.aborted) return;
+      if (results && results.length > 0) {
+        setImages(prev => prev.map(img => {
+          if (img.id !== tempId) return img;
+          const updated = { ...results[0], id: tempId, status: 'completed' as const };
+          saveImageToStorage(updated).catch(console.warn);
+          return updated;
+        }));
+        playSound('success', seed.settings.enableSounds);
+        setShowSuccessFlash(true);
+        setTimeout(() => setShowSuccessFlash(false), 1000);
+      } else {
+        throw new Error('No image data returned');
+      }
+    } catch (err: any) {
+      if (controller.signal.aborted) return;
+      const parsed = parseError(err);
+      setImages(prev => prev.map(img => img.id === tempId
+        ? { ...img, status: 'error' as const, error: parsed.message }
+        : img));
+      setError(parsed);
+      playSound('error', seed.settings.enableSounds);
+    } finally {
+      if (activeControllers.current.has(tempId)) {
+        activeControllers.current.delete(tempId);
+        setActiveCount(prev => Math.max(0, prev - 1));
+      }
+    }
+  }, []);
+
+  const toggleFavorite = useCallback((id: string) => {
+    setImages(prev => prev.map(img => {
+      if (img.id !== id) return img;
+      const updated = { ...img, favorite: !img.favorite };
+      saveImageToStorage(updated).catch(console.warn);
+      return updated;
+    }));
+  }, []);
+
+  // Retry an errored image: re-run with its stored prompt + settings in place.
+  const retryImage = useCallback(async (id: string) => {
+    let target: GeneratedImage | undefined;
+    setImages(prev => {
+      target = prev.find(img => img.id === id);
+      if (!target) return prev;
+      return prev.map(img => img.id === id ? { ...img, status: 'generating' as const, error: undefined } : img);
+    });
+    if (!target) return;
+
+    const controller = new AbortController();
+    activeControllers.current.set(id, controller);
+    setActiveCount(prev => prev + 1);
+
+    try {
+      const single = { ...target.settings, batchSize: 1 };
+      const results = await generateImages(target.prompt, single, controller.signal);
+      if (controller.signal.aborted) return;
+      if (results && results.length > 0) {
+        setImages(prev => prev.map(img => {
+          if (img.id !== id) return img;
+          const updated = { ...results[0], id, status: 'completed' as const };
+          saveImageToStorage(updated).catch(console.warn);
+          return updated;
+        }));
+        playSound('success', target.settings.enableSounds);
+      } else {
+        throw new Error('No image data returned');
+      }
+    } catch (err: any) {
+      if (controller.signal.aborted) return;
+      const parsed = parseError(err);
+      setImages(prev => prev.map(img => img.id === id ? { ...img, status: 'error' as const, error: parsed.message } : img));
+      setError(parsed);
+    } finally {
+      if (activeControllers.current.has(id)) {
+        activeControllers.current.delete(id);
+        setActiveCount(prev => Math.max(0, prev - 1));
+      }
+    }
+  }, []);
   
   const prependImage = (image: GeneratedImage) => {
     saveImageToStorage(image).catch(e => console.warn("Save failed", e));
@@ -235,6 +315,9 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
     clearAll, 
     clearError, 
     updateImages, 
-    prependImage
+    prependImage,
+    toggleFavorite,
+    retryImage,
+    runEdit
   };
 };

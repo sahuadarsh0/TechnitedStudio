@@ -10,18 +10,19 @@ import { useAudioRecorder } from './hooks/useAudioRecorder';
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useEditHistory } from './hooks/useEditHistory';
 import { usePromptOptimization } from './hooks/usePromptOptimization';
+import { usePresets } from './hooks/usePresets';
 import { HoverPreviewProvider } from './contexts/HoverPreviewContext';
+import { StudioProvider, useStudio } from './contexts/StudioContext';
 
 import { transcribeAudio } from './services/geminiService';
 import { playSound } from './services/soundService';
 import { getEffectiveApiKey } from './services/apiKeyService';
-import { DEFAULT_SETTINGS } from './constants';
-import { GenerationSettings, GeneratedImage, Resolution, CinematicSettings, CameraType, LightingStyle, CameraAngle, FocusTarget } from './types';
+import { constructCinematicPrompt } from './services/promptComposer';
+import { editImage, editImageWithMask } from './services/imageService';
+import { GenerationSettings, GeneratedImage } from './types';
 
-export default function App() {
-  const [settings, setSettings] = useState<GenerationSettings>(DEFAULT_SETTINGS);
-  const [prompt, setPrompt] = useState("");
-  const [referenceImages, setReferenceImages] = useState<string[]>([]);
+function StudioApp() {
+  const { settings, setSettings, prompt, setPrompt, referenceImages, addReferenceImages, removeReferenceImage } = useStudio();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProcessingAudio, setIsProcessingAudio] = useState(false);
   
@@ -31,7 +32,7 @@ export default function App() {
 
   const { 
     images, isGenerating, error, showSuccessFlash, 
-    generate, stopAll, stopImage, removeImages, clearAll, clearError, updateImages, prependImage 
+    generate, stopAll, stopImage, removeImages, clearAll, clearError, updateImages, prependImage, toggleFavorite, retryImage, runEdit 
   } = useImageGeneration({ settings });
 
   const {
@@ -45,6 +46,8 @@ export default function App() {
   } = usePromptOptimization(settings.enableSounds);
 
   const { isRecording, startRecording, stopRecording } = useAudioRecorder();
+
+  const { promptHistory, recordPrompt, removePrompt } = usePresets();
 
   // Initial Key Check
   useEffect(() => {
@@ -72,85 +75,19 @@ export default function App() {
     }
   };
 
-  // --- Prompt Alchemy: The Cinematic Engine ---
-  const constructCinematicPrompt = (basePrompt: string, settings: GenerationSettings) => {
-    const c: CinematicSettings = settings.cinematic;
-    const parts = [basePrompt.trim()];
-
-    // Camera Tech
-    if (c.cameraType !== CameraType.NONE) {
-        parts.push(`shot on ${c.cameraType}`);
-    }
-    
-    // Lens
-    parts.push(`${c.focalLength} lens`);
-
-    // Angles
-    if (c.angle !== CameraAngle.EYE_LEVEL) {
-        parts.push(c.angle);
-    }
-
-    // Focus Target Logic - Refined for accuracy
-    switch (c.focus) {
-        case FocusTarget.FACE:
-            parts.push("sharp focus on face", "portrait photography", "detailed eyes", "shallow depth of field f/1.8", "bokeh background");
-            break;
-        case FocusTarget.PRODUCT:
-            parts.push("sharp focus on product", "commercial product photography", "macro details", "isolated subject", "blurred background");
-            break;
-        case FocusTarget.MODEL_PRODUCT:
-            parts.push("sharp focus on model and product", "deep depth of field f/8", "balanced composition", "detailed scene");
-            break;
-        case FocusTarget.HAIR:
-            parts.push("focus on hair texture", "detailed hair strands", "voluminous hair", "studio hair lighting", "hair model photography");
-            break;
-        case FocusTarget.COUPLE:
-            parts.push("portrait of couple", "intimate connection", "focus on both faces", "relationship photography");
-            break;
-        case FocusTarget.BACKGROUND:
-            parts.push("focus on background", "wide angle", "deep depth of field f/16", "hyper-detailed environment", "infinity focus");
-            break;
-        default:
-            // Auto Focus (None)
-            break;
-    }
-
-    // Lighting Logic
-    if (c.lighting === LightingStyle.STUDIO) {
-        parts.push("professional 3-point studio lighting", "rim light", "softbox", "perfect exposure");
-    } else if (c.lighting === LightingStyle.NONE) {
-        parts.push("natural lighting", "available light", "authentic atmosphere");
-    } else {
-        parts.push(`${c.lighting} lighting style`);
-    }
-
-    // Zoom & Details
-    if (c.zoomDetail) {
-        parts.push("extreme close-up", "macro photography", "100mm macro", "hyper-detailed texture");
-    }
-
-    if (c.details.pores) {
-        parts.push("visible skin pores", "natural skin texture", "high frequency skin detail", "subsurface scattering");
-    }
-
-    if (c.details.eyeReflections) {
-        parts.push("highly detailed eyes", "sharp iris texture", "corneal reflections", "catchlights in eyes");
-    }
-
-    // Removed imperfections/moles logic as requested ("Pores are enough")
-
-    // General Quality Tags
-    parts.push("8k resolution", "masterpiece", "ultra-realistic", "award winning photography");
-
-    return parts.join(", ");
-  };
+  // --- Prompt Alchemy: extracted to services/promptComposer.ts ---
 
   const handleGenerate = async () => {
     setIsSettingsOpen(false);
 
     try {
       const enhancedPrompt = constructCinematicPrompt(prompt, settings);
-      
+
+      // Record the raw user prompt (not the enhanced one) to history.
+      if (prompt.trim() && !editingImage) {
+        recordPrompt(prompt);
+      }
+
       await generate(
         enhancedPrompt, 
         referenceImages.length > 0 ? referenceImages : null, 
@@ -238,6 +175,50 @@ export default function App() {
     setPrompt(""); 
   };
 
+  // Send a past generation's prompt + settings back to the prompt dock for re-use / re-run.
+  const handleUsePrompt = (image: GeneratedImage) => {
+    setPrompt(image.prompt);
+    setSettings(prev => ({
+      ...prev,
+      aspectRatio: image.settings.aspectRatio,
+      resolution: image.settings.resolution,
+      model: image.settings.model,
+      cinematic: image.settings.cinematic,
+    }));
+  };
+
+  // Region (brush-mask) edit: composite mask overlay + instruction through the edit pipeline.
+  const handleInpaint = async (image: GeneratedImage, maskOverlay: string, instruction: string) => {
+    await runEdit(image, (signal) =>
+      editImageWithMask(image.url, maskOverlay, instruction, image.settings, signal)
+    );
+  };
+
+  // One-tap tools (background remover / upscaler) via the edit pipeline.
+  const handleApplyTool = async (image: GeneratedImage, tool: 'removeBg' | 'upscale') => {
+    if (tool === 'removeBg') {
+      await runEdit(image, (signal) =>
+        editImage(
+          [image.url],
+          'Remove the background completely and make it transparent. Keep the main subject perfectly intact with clean edges. Output a transparent PNG.',
+          { ...image.settings, batchSize: 1 },
+          signal
+        )
+      );
+    } else {
+      // Upscale: re-run image-to-image at the next resolution tier.
+      const nextRes = image.settings.resolution === '4K' ? '4K' : image.settings.resolution === '2K' ? '4K' : '2K';
+      await runEdit(image, (signal) =>
+        editImage(
+          [image.url],
+          'Upscale this image to a higher resolution with enhanced sharpness and fine detail. Keep the composition and content identical.',
+          { ...image.settings, resolution: nextRes as GenerationSettings['resolution'], batchSize: 1 },
+          signal
+        )
+      );
+    }
+  };
+
   const handleEditAction = (action: 'undo' | 'redo' | 'exit') => {
     if (action === 'undo') undo();
     if (action === 'redo') redo();
@@ -252,10 +233,7 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (e) => {
           if (e.target?.result) {
-              setReferenceImages(prev => {
-                  if (prev.length >= 10) return prev;
-                  return [...prev, e.target!.result as string];
-              });
+              addReferenceImages([e.target.result as string]);
           }
       };
       reader.readAsDataURL(file);
@@ -263,7 +241,7 @@ export default function App() {
   };
 
   const handleRemoveReference = (index: number) => {
-      setReferenceImages(prev => prev.filter((_, i) => i !== index));
+      removeReferenceImage(index);
   };
 
   if (!hasKey) {
@@ -302,6 +280,7 @@ export default function App() {
         onReferenceImageUpload={handleReferenceUpload}
         referenceImages={referenceImages}
         onRemoveReferenceImage={handleRemoveReference}
+        onAddReferenceUrl={(url) => addReferenceImages([url])}
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
@@ -326,6 +305,12 @@ export default function App() {
           onCreateVariations={handleCreateVariations}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onStopImage={stopImage} // Pass the individual stop handler
+          onToggleFavorite={toggleFavorite}
+          onUsePrompt={handleUsePrompt}
+          onUseStarter={(p) => setPrompt(p)}
+          onInpaint={handleInpaint}
+          onApplyTool={handleApplyTool}
+          onRetry={retryImage}
         />
 
         <WorkspaceControls 
@@ -342,6 +327,9 @@ export default function App() {
           historyIndex={historyIndex}
           error={error}
           hasReference={referenceImages.length > 0}
+          promptHistory={promptHistory}
+          onSelectHistory={(p) => setPrompt(p)}
+          onDeleteHistory={removePrompt}
           onGenerate={handleGenerate}
           onStop={stopAll} // Now maps to Stop All
           onOptimize={() => optimize(prompt, setPrompt)}
@@ -360,5 +348,13 @@ export default function App() {
       />
     </div>
     </HoverPreviewProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <StudioProvider>
+      <StudioApp />
+    </StudioProvider>
   );
 }

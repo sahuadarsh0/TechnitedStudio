@@ -2,7 +2,7 @@
 import React from 'react';
 import { GeneratedImage } from '../../types';
 import { useImageInspector } from '../../hooks/useImageInspector';
-import { ChevronLeftIcon, ChevronRightIcon, ZoomOutIcon, ZoomInIcon, VariationsIcon, DownloadIcon, TrashIcon, EditIcon } from '../Icons';
+import { ChevronLeftIcon, ChevronRightIcon, ZoomOutIcon, ZoomInIcon, VariationsIcon, DownloadIcon, TrashIcon, EditIcon, EraserIcon } from '../Icons';
 
 interface InspectionViewerProps {
   image: GeneratedImage;
@@ -15,11 +15,12 @@ interface InspectionViewerProps {
   onDownload: (e: React.MouseEvent, image: GeneratedImage) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
   onEdit: (e: React.MouseEvent, image: GeneratedImage) => void;
+  onInpaint?: (image: GeneratedImage) => void;
 }
 
 export const InspectionViewer: React.FC<InspectionViewerProps> = ({
   image, onPrev, onNext, hasPrev, hasNext, onClose,
-  onCreateVariations, onDownload, onDelete, onEdit
+  onCreateVariations, onDownload, onDelete, onEdit, onInpaint
 }) => {
   const {
     zoom, pan, isDragging,
@@ -115,6 +116,12 @@ export const InspectionViewer: React.FC<InspectionViewerProps> = ({
           <button onClick={(e) => onDelete(e, image.id)} className="p-2.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-red-500 transition-colors" title="Delete">
             <TrashIcon className="w-5 h-5" />
           </button>
+
+          {onInpaint && (
+            <button onClick={(e) => { e.stopPropagation(); onInpaint(image); }} className="p-2.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-laserPurple transition-colors" title="Region Edit (paint a mask)">
+              <EraserIcon className="w-5 h-5" />
+            </button>
+          )}
           
           <button onClick={(e) => onEdit(e, image)} className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-laserPurple/20 hover:text-laserPurple hover:border-laserPurple/30 border border-transparent rounded-lg text-xs font-bold tracking-widest uppercase text-gray-300 transition-all ml-1">
             <EditIcon className="w-4 h-4" />

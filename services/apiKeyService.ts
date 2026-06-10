@@ -29,9 +29,9 @@ export const validateApiKey = async (key: string): Promise<boolean> => {
   if (!key) return false;
   try {
     const ai = new GoogleGenAI({ apiKey: key });
-    // Use a lightweight model call to verify the key
+    // Use a lightweight, current model call to verify the key
     await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image', 
+        model: 'gemini-3-flash-preview',
         contents: { parts: [{ text: 'ping' }] }
     });
     return true;

@@ -3,15 +3,20 @@ import React, { useState } from 'react';
 import { GeneratedImage, Resolution, AspectRatio, AIModel, CinematicSettings } from '../../types';
 import { ASPECT_RATIOS, MODELS } from '../../constants';
 import { DirectorsControl } from '../control-panel/DirectorsControl';
+import { downloadImageAs, ExportFormat } from '../../services/exportService';
+import { EraserIcon, UpscaleIcon, HistoryIcon, StarIcon, DownloadIcon } from '../Icons';
 
 interface InspectionSidebarProps {
   image: GeneratedImage;
   isLoading: boolean;
   onRegenerate: (image: GeneratedImage, newSettings: Partial<GeneratedImage['settings']>) => void;
   onClose: () => void;
+  onApplyTool?: (image: GeneratedImage, tool: 'removeBg' | 'upscale') => void;
+  onUsePrompt?: (image: GeneratedImage) => void;
+  onToggleFavorite?: (id: string) => void;
 }
 
-export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isLoading, onRegenerate, onClose }) => {
+export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isLoading, onRegenerate, onClose, onApplyTool, onUsePrompt, onToggleFavorite }) => {
   const [copied, setCopied] = useState(false);
   const modelLabel = MODELS.find(m => m.id === image.settings.model)?.label || image.settings.model;
 
@@ -45,6 +50,50 @@ export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isL
         <span className="w-1 h-6 bg-laserBlue rounded-full shadow-[0_0_8px_#00f0ff]"></span>
         Asset Data
       </h3>
+
+      {/* Quick Tools */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {onToggleFavorite && (
+          <button
+            onClick={() => onToggleFavorite(image.id)}
+            aria-pressed={!!image.favorite}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all ${
+              image.favorite ? 'bg-amber-400/15 border-amber-400/40 text-amber-300' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/30'
+            }`}
+          >
+            <StarIcon className="w-3.5 h-3.5" filled={!!image.favorite} /> {image.favorite ? 'Favorited' : 'Favorite'}
+          </button>
+        )}
+        {onUsePrompt && (
+          <button
+            onClick={() => { onUsePrompt(image); onClose(); }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/30 text-[10px] font-bold uppercase tracking-wider transition-all"
+            title="Send this prompt and settings back to the dock"
+          >
+            <HistoryIcon className="w-3.5 h-3.5" /> Use Prompt
+          </button>
+        )}
+        {onApplyTool && (
+          <>
+            <button
+              onClick={() => { onApplyTool(image, 'removeBg'); onClose(); }}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border bg-white/5 border-white/10 text-gray-400 hover:text-laserBlue hover:border-laserBlue/30 text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+              title="Remove background (transparent PNG)"
+            >
+              <EraserIcon className="w-3.5 h-3.5" /> Remove BG
+            </button>
+            <button
+              onClick={() => { onApplyTool(image, 'upscale'); onClose(); }}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border bg-white/5 border-white/10 text-gray-400 hover:text-laserPurple hover:border-laserPurple/30 text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+              title="Upscale to higher resolution"
+            >
+              <UpscaleIcon className="w-3.5 h-3.5" /> Upscale
+            </button>
+          </>
+        )}
+      </div>
       
       <div className="space-y-6 md:space-y-8 flex-1">
         {image.sources && image.sources.length > 0 && (
@@ -126,10 +175,28 @@ export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isL
           </div>
         </div>
 
+        {/* Export formats */}
+        <div>
+          <h4 className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <DownloadIcon className="w-3.5 h-3.5" /> Export
+          </h4>
+          <div className="flex gap-2">
+            {(['png', 'jpeg', 'webp'] as ExportFormat[]).map((fmt) => (
+              <button
+                key={fmt}
+                onClick={() => downloadImageAs(image, fmt).catch(console.warn)}
+                className="flex-1 py-2 rounded-lg border border-white/10 bg-white/5 text-gray-300 hover:text-white hover:border-laserBlue/40 hover:bg-laserBlue/5 text-[10px] font-bold uppercase tracking-wider transition-all"
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div>
           <h4 className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-3">Re-Frame Asset</h4>
           <div className="flex flex-wrap gap-2">
-            {ASPECT_RATIOS.slice(0, 6).map(ratio => (
+            {ASPECT_RATIOS.filter(r => r !== AspectRatio.AUTO).slice(0, 6).map(ratio => (
               <button 
                 key={ratio} 
                 onClick={() => handleChangeAspectRatio(ratio as AspectRatio)} 
@@ -150,6 +217,14 @@ export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isL
             </div>
           </div>
         )}
+
+        {/* Provenance: Google embeds SynthID watermark + C2PA Content Credentials */}
+        <div className="pt-4 border-t border-white/5">
+          <div className="flex items-center gap-2 text-gray-600">
+            <span className="w-1.5 h-1.5 rounded-full bg-laserBlue/60"></span>
+            <span className="text-[9px] font-mono uppercase tracking-widest">AI-generated · SynthID + C2PA credentials embedded</span>
+          </div>
+        </div>
         
         <div className="pb-8"></div>
       </div>

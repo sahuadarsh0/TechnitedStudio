@@ -12,6 +12,8 @@ interface GridContentProps {
   onImageClick: (image: GeneratedImage) => void;
   onDeleteOne: (e: React.MouseEvent, id: string) => void;
   onStop?: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
+  onRetry?: (id: string) => void;
 }
 
 export const GridContent: React.FC<GridContentProps> = ({
@@ -20,7 +22,9 @@ export const GridContent: React.FC<GridContentProps> = ({
   onToggleSelection,
   onImageClick,
   onDeleteOne,
-  onStop
+  onStop,
+  onToggleFavorite,
+  onRetry
 }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
@@ -33,6 +37,8 @@ export const GridContent: React.FC<GridContentProps> = ({
           onClick={onImageClick}
           onDelete={onDeleteOne}
           onStop={onStop}
+          onToggleFavorite={onToggleFavorite}
+          onRetry={onRetry}
         />
       ))}
     </div>

@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
 import { AspectRatio } from '../../types';
-import { ASPECT_RATIOS } from '../../constants';
 import { ChevronDownIcon } from '../Icons';
 
 interface AspectRatioSelectorProps {
   selectedRatio: AspectRatio;
   isGenerating: boolean;
   onChange: (ratio: AspectRatio) => void;
+  ratios?: AspectRatio[];
 }
 
 // Helper to render aspect ratio icon
@@ -24,13 +24,19 @@ const AspectRatioIcon = ({ ratio }: { ratio: AspectRatio }) => {
     case AspectRatio.SQUARE: width = "w-3"; height = "h-3"; break; // 1:1
     case AspectRatio.PHOTO_LANDSCAPE: width = "w-4"; height = "h-2.5"; break; // 3:2
     case AspectRatio.PHOTO_PORTRAIT: width = "w-2.5"; height = "h-4"; break; // 2:3
+    case AspectRatio.AUTO: width = "w-3.5"; height = "h-3.5"; break; // auto
+  }
+
+  if (ratio === AspectRatio.AUTO) {
+    return <span className="text-[8px] font-black tracking-tight">A</span>;
   }
 
   return <div className={`border ${width} ${height} rounded-[1px] border-current opacity-80`}></div>;
 };
 
-export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({ selectedRatio, isGenerating, onChange }) => {
+export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({ selectedRatio, isGenerating, onChange, ratios }) => {
   const [isAspectRatioMenuOpen, setIsAspectRatioMenuOpen] = useState(false);
+  const list = ratios && ratios.length > 0 ? ratios : Object.values(AspectRatio);
 
   return (
     <section className="relative z-30">
@@ -57,7 +63,7 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({ select
               <div className="fixed inset-0 z-40" onClick={() => setIsAspectRatioMenuOpen(false)}></div>
               <div className="absolute top-full left-0 right-0 z-50 mt-2 bg-[#0F0F0F] border border-white/10 rounded-lg shadow-2xl overflow-hidden animate-fadeIn backdrop-blur-xl">
                   <div className="p-1.5 grid grid-cols-2 gap-1 max-h-64 overflow-y-auto custom-scrollbar">
-                      {ASPECT_RATIOS.map((ratio) => (
+                      {list.map((ratio) => (
                           <button
                               key={ratio}
                               onClick={() => {

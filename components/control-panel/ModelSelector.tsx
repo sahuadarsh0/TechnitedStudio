@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { AIModel } from '../../types';
-import { MODELS } from '../../constants';
+import { MODELS, getModelCapabilities } from '../../constants';
 import { GoogleIcon } from '../Icons';
 
 interface ModelSelectorProps {
@@ -25,7 +25,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       <div className="space-y-3">
         {MODELS.map((model) => {
            const isSelected = selectedModel === model.id;
-           const isPro = model.id === AIModel.PRO;
+           const supportsGrounding = getModelCapabilities(model.id).grounding;
 
            return (
             <div 
@@ -34,15 +34,14 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             >
                <button
                   onClick={() => onChange(model.id)}
-                  // Removed disabled={isGenerating} to allow queue configuration
                   className="w-full p-3 text-left focus:outline-none flex flex-col gap-2"
                >
                   <div className="flex items-center justify-between w-full">
                     <span className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-gray-400'}`}>{model.label}</span>
                     
                     <div className="flex items-center gap-3">
-                        {/* Grounding Toggle (Pro Only) - Moved to Top Row */}
-                        {isSelected && isPro && (
+                        {/* Grounding Toggle (any model that supports grounding) */}
+                        {isSelected && supportsGrounding && (
                            <div 
                              onClick={(e) => {
                                  e.stopPropagation();
@@ -65,7 +64,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   </div>
                   
                   <div className="flex items-end justify-between w-full gap-2">
-                      <p className={`text-[10px] text-gray-500 leading-tight transition-opacity ${isSelected && isPro ? 'opacity-100 max-w-[75%]' : 'opacity-80'}`}>
+                      <p className={`text-[10px] text-gray-500 leading-tight transition-opacity ${isSelected && supportsGrounding ? 'opacity-100 max-w-[75%]' : 'opacity-80'}`}>
                           {model.description}
                       </p>
                   </div>

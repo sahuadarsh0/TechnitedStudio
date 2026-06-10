@@ -3,7 +3,7 @@ import { GeneratedImage } from '../types';
 
 const DB_NAME = 'TechnitedStudioDB';
 const STORE_NAME = 'images';
-const DB_VERSION = 1;
+const DB_VERSION = 3; // v3 adds uploadHistory store (see uploadHistoryService.ts); v2 added presets + prompt history
 
 const openDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
@@ -19,6 +19,15 @@ const openDB = (): Promise<IDBDatabase> => {
             const db = (event.target as IDBOpenDBRequest).result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('promptHistory')) {
+                db.createObjectStore('promptHistory', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('directorPresets')) {
+                db.createObjectStore('directorPresets', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('uploadHistory')) {
+                db.createObjectStore('uploadHistory', { keyPath: 'id' });
             }
         };
     });

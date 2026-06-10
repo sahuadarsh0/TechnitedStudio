@@ -196,3 +196,52 @@ export const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
     <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
   </svg>
 );
+
+export const StarIcon: React.FC<IconProps & { filled?: boolean }> = ({ className, strokeWidth = 2, filled = false }) => (
+  <svg className={className} fill={filled ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M11.48 3.5a.56.56 0 011.04 0l2.12 4.92a.56.56 0 00.47.34l5.34.46c.5.04.7.66.32.99l-4.05 3.5a.56.56 0 00-.18.55l1.2 5.21c.12.49-.42.88-.85.62l-4.6-2.77a.56.56 0 00-.58 0l-4.6 2.77c-.43.26-.97-.13-.85-.62l1.2-5.21a.56.56 0 00-.18-.55l-4.05-3.5c-.38-.33-.18-.95.32-.99l5.34-.46a.56.56 0 00.47-.34l2.12-4.92z" />
+  </svg>
+);
+
+export const SearchIcon: React.FC<IconProps> = ({ className, strokeWidth = 2 }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+  </svg>
+);
+
+export const SortIcon: React.FC<IconProps> = ({ className, strokeWidth = 2 }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M3 6h18M6 12h12M10 18h4" />
+  </svg>
+);
+
+export const MagicIcon: React.FC<IconProps> = ({ className, strokeWidth = 2 }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M5 3v4M3 5h4M6 17v4m-2-2h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3z" />
+  </svg>
+);
+
+export const HistoryIcon: React.FC<IconProps> = ({ className, strokeWidth = 2 }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M3 3v5h5M3.05 13A9 9 0 106 5.3L3 8m9 0v5l4 2" />
+  </svg>
+);
+
+export const EraserIcon: React.FC<IconProps> = ({ className, strokeWidth = 2 }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M7 21h10M5 13l6-6 7 7-5 5H8l-3-3a1.5 1.5 0 010-2.1z" />
+  </svg>
+);
+
+export const UpscaleIcon: React.FC<IconProps> = ({ className, strokeWidth = 2 }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+  </svg>
+);
+
+export const SaveIcon: React.FC<IconProps> = ({ className, strokeWidth = 2 }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M17 21v-8H7v8M7 3v5h8" />
+  </svg>
+);

@@ -2,7 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GeneratedImage, Resolution, AspectRatio } from '../../types';
 import { RESOLUTIONS, ASPECT_RATIOS } from '../../constants';
-import { CheckIcon, DownloadIcon, TrashIcon, SettingsIcon, FilterIcon } from '../Icons';
+import { CheckIcon, DownloadIcon, TrashIcon, SettingsIcon, FilterIcon, SearchIcon, SortIcon, StarIcon } from '../Icons';
+import type { GallerySort } from '../ImageGrid';
 
 interface GalleryHeaderProps {
   images: GeneratedImage[];
@@ -18,6 +19,10 @@ interface GalleryHeaderProps {
   activeAspectRatio: AspectRatio | null;
   onFilterChange: (type: 'resolution' | 'aspectRatio', value: string | null) => void;
   onOpenSettings: () => void;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
+  sortOrder: GallerySort;
+  onSortChange: (s: GallerySort) => void;
 }
 
 export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
@@ -33,17 +38,27 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
   activeResolution,
   activeAspectRatio,
   onFilterChange,
-  onOpenSettings
+  onOpenSettings,
+  searchQuery,
+  onSearchChange,
+  sortOrder,
+  onSortChange
 }) => {
   const isSelectionActive = selectedIds.size > 0;
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
 
-  // Close filter on click outside
+  // Close popovers on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
         setIsFilterOpen(false);
+      }
+      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+        setIsSortOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -54,6 +69,12 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
   
   // Calculate counts strictly for completed images
   const visibleCompletedCount = images.filter(img => img.status === 'completed').length;
+
+  const SORT_OPTIONS: { id: GallerySort; label: string }[] = [
+    { id: 'newest', label: 'Newest first' },
+    { id: 'oldest', label: 'Oldest first' },
+    { id: 'favorites', label: 'Favorites only' },
+  ];
 
   return (
     <div className={`h-14 border-b flex justify-between items-center px-3 md:px-6 backdrop-blur-md z-50 shrink-0 transition-colors duration-300 relative ${isSelectionActive ? 'bg-laserBlue/10 border-laserBlue/30' : 'bg-charcoal/50 border-white/5'}`}>
@@ -162,6 +183,67 @@ export const GalleryHeader: React.FC<GalleryHeaderProps> = ({
                       )}
                   </div>
                 )}
+            </div>
+
+            {/* Search prompts */}
+            <div className="relative shrink-0 flex items-center">
+              {isSearchOpen ? (
+                <div className="flex items-center gap-1.5 bg-white/5 border border-white/15 rounded px-2 py-1.5 animate-fadeIn">
+                  <SearchIcon className="w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    onBlur={() => { if (!searchQuery) setIsSearchOpen(false); }}
+                    placeholder="Search prompts..."
+                    aria-label="Search prompts"
+                    className="bg-transparent text-xs text-white placeholder-gray-600 focus:outline-none w-28 sm:w-44"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => onSearchChange('')} aria-label="Clear search" className="text-gray-500 hover:text-white text-xs">✕</button>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsSearchOpen(true)}
+                  aria-label="Search prompts"
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded border border-transparent text-gray-400 hover:text-white hover:bg-white/5 transition-all uppercase tracking-widest text-[10px] md:text-xs font-bold"
+                >
+                  <SearchIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Search</span>
+                </button>
+              )}
+            </div>
+
+            {/* Sort */}
+            <div className="relative shrink-0" ref={sortRef}>
+              <button
+                onClick={() => setIsSortOpen(!isSortOpen)}
+                aria-haspopup="menu"
+                aria-expanded={isSortOpen}
+                aria-label="Sort gallery"
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded border transition-all uppercase tracking-widest text-[10px] md:text-xs font-bold ${isSortOpen || sortOrder !== 'newest' ? 'bg-white/10 border-white/20 text-white' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}
+              >
+                {sortOrder === 'favorites' ? <StarIcon className="w-3.5 h-3.5" filled /> : <SortIcon className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{SORT_OPTIONS.find(o => o.id === sortOrder)?.label}</span>
+              </button>
+              {isSortOpen && (
+                <div role="menu" className="absolute top-full left-0 mt-2 w-44 bg-[#0F0F0F] border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 animate-fadeIn backdrop-blur-xl">
+                  {SORT_OPTIONS.map(opt => (
+                    <button
+                      key={opt.id}
+                      role="menuitemradio"
+                      aria-checked={sortOrder === opt.id}
+                      onClick={() => { onSortChange(opt.id); setIsSortOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-2.5 py-2 rounded text-[11px] transition-all ${sortOrder === opt.id ? 'bg-laserBlue/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                    >
+                      {opt.id === 'favorites' ? <StarIcon className="w-3.5 h-3.5" filled={sortOrder === 'favorites'} /> : <SortIcon className="w-3.5 h-3.5" />}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {visibleCompletedCount > 0 && (

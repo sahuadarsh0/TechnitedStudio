@@ -1,7 +1,8 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { GenerationSettings, GeneratedImage, AIModel } from "../types";
+import { GenerationSettings, GeneratedImage } from "../types";
 import { getEffectiveApiKey } from "./apiKeyService";
+import { getModelCapabilities } from "../constants";
 import { batchProcess } from "./batchProcessor";
 import { extractImageFromResponse } from "./responseMapper";
 
@@ -95,10 +96,16 @@ const executeApiCall = async (
 // --- Config Builders ---
 
 const buildImageConfig = (settings: GenerationSettings): any => {
-    const imageConfig: any = { aspectRatio: settings.aspectRatio };
+    const imageConfig: any = {};
+    const caps = getModelCapabilities(settings.model);
 
-    // Apply resolution for Pro model
-    if (settings.model === AIModel.PRO) {
+    // "auto" means let the model decide — omit the field entirely.
+    if (settings.aspectRatio && settings.aspectRatio !== 'auto') {
+        imageConfig.aspectRatio = settings.aspectRatio;
+    }
+
+    // Both Nano Banana 2 and Nano Banana Pro support 1K/2K/4K output.
+    if (caps.resolutions) {
         imageConfig.imageSize = settings.resolution;
     }
 
@@ -110,8 +117,10 @@ const buildRequestConfig = (settings: GenerationSettings): any => {
         imageConfig: buildImageConfig(settings)
     };
 
-    // Enable Google Grounding when requested (Pro model with googleSearch enabled)
-    if (settings.model === AIModel.PRO && settings.googleSearch) {
+    const caps = getModelCapabilities(settings.model);
+
+    // Enable Google Grounding when requested (supported on both tiers).
+    if (caps.grounding && settings.googleSearch) {
         config.tools = [{ googleSearch: {} }];
     }
 
@@ -155,6 +164,23 @@ export const generateImages = async (
             throw err;
         }
     }, signal, onImageGenerated);
+};
+
+/**
+ * Region-aware edit: sends the original image plus a mask-overlay image (the
+ * region the user painted, highlighted in magenta) and instructs the model to
+ * only modify the highlighted area. Gemini's edit endpoint has no dedicated
+ * mask channel, so the highlighted-overlay technique is used.
+ */
+export const editImageWithMask = async (
+    baseImage: string,
+    maskOverlay: string,
+    instruction: string,
+    settings: GenerationSettings,
+    signal?: AbortSignal
+): Promise<GeneratedImage[]> => {
+    const guided = `Edit only the area highlighted in magenta in the second image. Apply this change to that region: ${instruction.trim()}. Keep everything outside the highlighted region identical to the first image. Do not draw the magenta highlight in the output.`;
+    return editImage([baseImage, maskOverlay], guided, { ...settings, batchSize: 1 }, signal);
 };
 
 export const editImage = async (

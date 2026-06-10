@@ -6,6 +6,9 @@ import { InspectionModal } from './image-grid/InspectionModal';
 import { DeleteModal } from './image-grid/DeleteModal';
 import { EmptyState } from './image-grid/EmptyState';
 import { GridContent } from './image-grid/GridContent';
+import { downloadImagesAsZip } from '../services/exportService';
+
+export type GallerySort = 'newest' | 'oldest' | 'favorites';
 
 interface ImageGridProps {
   images: GeneratedImage[];
@@ -18,6 +21,12 @@ interface ImageGridProps {
   onCreateVariations: (image: GeneratedImage) => void;
   onOpenSettings: () => void;
   onStopImage?: (id: string) => void; // Added prop
+  onToggleFavorite?: (id: string) => void;
+  onUsePrompt?: (image: GeneratedImage) => void;
+  onUseStarter?: (prompt: string) => void;
+  onInpaint?: (image: GeneratedImage, maskOverlay: string, instruction: string) => void;
+  onApplyTool?: (image: GeneratedImage, tool: 'removeBg' | 'upscale') => void;
+  onRetry?: (id: string) => void;
 }
 
 const ImageGrid: React.FC<ImageGridProps> = ({ 
@@ -30,7 +39,13 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   onRegenerate,
   onCreateVariations,
   onOpenSettings,
-  onStopImage
+  onStopImage,
+  onToggleFavorite,
+  onUsePrompt,
+  onUseStarter,
+  onInpaint,
+  onApplyTool,
+  onRetry
 }) => {
   const [viewingImage, setViewingImage] = useState<GeneratedImage | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -38,13 +53,26 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   // Filter State
   const [activeResolution, setActiveResolution] = useState<Resolution | null>(null);
   const [activeAspectRatio, setActiveAspectRatio] = useState<AspectRatio | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<GallerySort>('newest');
   
   // Apply Filters
-  const filteredImages = images.filter(img => {
-    if (activeResolution && img.settings.resolution !== activeResolution) return false;
-    if (activeAspectRatio && img.settings.aspectRatio !== activeAspectRatio) return false;
-    return true;
-  });
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredImages = images
+    .filter(img => {
+      if (activeResolution && img.settings.resolution !== activeResolution) return false;
+      if (activeAspectRatio && img.settings.aspectRatio !== activeAspectRatio) return false;
+      if (sortOrder === 'favorites' && img.status === 'completed' && !img.favorite) return false;
+      if (searchLower && img.status === 'completed' && !img.prompt.toLowerCase().includes(searchLower)) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      // Keep generating placeholders pinned at the top regardless of sort
+      if (a.status === 'generating' && b.status !== 'generating') return -1;
+      if (b.status === 'generating' && a.status !== 'generating') return 1;
+      if (sortOrder === 'oldest') return a.timestamp - b.timestamp;
+      return b.timestamp - a.timestamp; // newest (and favorites view) default
+    });
 
   const handleFilterChange = (type: 'resolution' | 'aspectRatio', value: string | null) => {
       if (type === 'resolution') setActiveResolution(value as Resolution | null);
@@ -56,6 +84,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   const handleClearFilters = () => {
       setActiveResolution(null);
       setActiveAspectRatio(null);
+      setSearchQuery('');
+      setSortOrder('newest');
   };
 
   // Delete Confirmation State
@@ -212,17 +242,36 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   };
 
   const handleDownloadSelected = async () => {
-    const selectedImages = filteredImages.filter(img => selectedIds.has(img.id));
-    for (const image of selectedImages) {
-        handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
-        await new Promise(r => setTimeout(r, 250));
+    const selectedImages = filteredImages.filter(img => selectedIds.has(img.id) && img.status === 'completed');
+    if (selectedImages.length === 0) return;
+    if (selectedImages.length === 1) {
+        handleDownload({ stopPropagation: () => {} } as React.MouseEvent, selectedImages[0]);
+        return;
+    }
+    // Multiple: bundle into a single zip
+    try {
+        await downloadImagesAsZip(selectedImages, 'png');
+    } catch (e) {
+        console.warn('Zip export failed, falling back to sequential', e);
+        for (const image of selectedImages) {
+            handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
+            await new Promise(r => setTimeout(r, 250));
+        }
     }
   };
 
   const handleDownloadAll = async () => {
-    if (filteredImages.length === 0) return;
-    for (const image of filteredImages) {
-        if (image.status === 'completed') {
+    const completed = filteredImages.filter(img => img.status === 'completed' && img.url);
+    if (completed.length === 0) return;
+    if (completed.length === 1) {
+        handleDownload({ stopPropagation: () => {} } as React.MouseEvent, completed[0]);
+        return;
+    }
+    try {
+        await downloadImagesAsZip(completed, 'png');
+    } catch (e) {
+        console.warn('Zip export failed, falling back to sequential', e);
+        for (const image of completed) {
             handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
             await new Promise(r => setTimeout(r, 250));
         }
@@ -230,8 +279,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   };
 
   const handleImageClick = (image: GeneratedImage) => {
-      // Prevent opening inspector for generating images
-      if (image.status === 'generating') return;
+      // Prevent opening inspector for generating / errored images
+      if (image.status === 'generating' || image.status === 'error') return;
       setViewingImage(image);
   };
 
@@ -247,6 +296,12 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   const currentIndex = viewingImage ? navigableImages.findIndex(img => img.id === viewingImage.id) : -1;
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex !== -1 && currentIndex < navigableImages.length - 1;
+
+  // Keep the open inspector in sync with the live image (so favorite toggles,
+  // edits, etc. reflect immediately instead of showing a stale snapshot).
+  const liveViewingImage = viewingImage
+    ? images.find(img => img.id === viewingImage.id) ?? viewingImage
+    : null;
 
   // Use raw images length for checking emptiness vs filtering
   const isEmpty = images.length === 0 && !isLoading;
@@ -270,6 +325,10 @@ const ImageGrid: React.FC<ImageGridProps> = ({
         activeAspectRatio={activeAspectRatio}
         onFilterChange={handleFilterChange}
         onOpenSettings={onOpenSettings}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        sortOrder={sortOrder}
+        onSortChange={setSortOrder}
       />
 
       {/* Grid Content with Extended Bottom Padding for Mobile */}
@@ -278,6 +337,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({
             <EmptyState 
                 isAbsolutelyEmpty={images.length === 0} 
                 onClearFilters={handleClearFilters} 
+                onUseStarter={onUseStarter}
             />
         ) : (
             <GridContent 
@@ -289,14 +349,16 @@ const ImageGrid: React.FC<ImageGridProps> = ({
                 onImageClick={handleImageClick}
                 onDeleteOne={requestDeleteOne}
                 onStop={onStopImage}
+                onToggleFavorite={onToggleFavorite}
+                onRetry={onRetry}
             />
         )}
       </div>
 
       {/* INSPECTION VIEWPORT OVERLAY */}
-      {viewingImage && (
+      {liveViewingImage && (
         <InspectionModal
-          image={viewingImage}
+          image={liveViewingImage}
           onClose={() => setViewingImage(null)}
           onPrev={() => hasPrev && setViewingImage(navigableImages[currentIndex - 1])}
           onNext={() => hasNext && setViewingImage(navigableImages[currentIndex + 1])}
@@ -308,6 +370,10 @@ const ImageGrid: React.FC<ImageGridProps> = ({
           onCreateVariations={onCreateVariations}
           onEdit={handleEdit}
           isLoading={isLoading}
+          onInpaint={onInpaint}
+          onApplyTool={onApplyTool}
+          onUsePrompt={onUsePrompt}
+          onToggleFavorite={onToggleFavorite}
         />
       )}
 

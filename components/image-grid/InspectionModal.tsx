@@ -1,9 +1,10 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GeneratedImage } from '../../types';
 import { InspectionHeader } from '../inspection/InspectionHeader';
 import { InspectionViewer } from '../inspection/InspectionViewer';
 import { InspectionSidebar } from '../inspection/InspectionSidebar';
+import { InpaintModal } from '../inspection/InpaintModal';
 
 interface InspectionModalProps {
   image: GeneratedImage;
@@ -18,6 +19,10 @@ interface InspectionModalProps {
   onCreateVariations: (image: GeneratedImage) => void;
   onEdit: (e: React.MouseEvent, image: GeneratedImage) => void;
   isLoading: boolean;
+  onInpaint?: (image: GeneratedImage, maskOverlay: string, instruction: string) => void;
+  onApplyTool?: (image: GeneratedImage, tool: 'removeBg' | 'upscale') => void;
+  onUsePrompt?: (image: GeneratedImage) => void;
+  onToggleFavorite?: (id: string) => void;
 }
 
 export const InspectionModal: React.FC<InspectionModalProps> = ({
@@ -32,18 +37,25 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
   onRegenerate,
   onCreateVariations,
   onEdit,
-  isLoading
+  isLoading,
+  onInpaint,
+  onApplyTool,
+  onUsePrompt,
+  onToggleFavorite
 }) => {
+  const [isInpainting, setIsInpainting] = useState(false);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isInpainting) return; // don't navigate while painting
       if (e.key === 'ArrowLeft') onPrev();
       if (e.key === 'ArrowRight') onNext();
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onPrev, onNext, onClose]);
+  }, [onPrev, onNext, onClose, isInpainting]);
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#050505] animate-fadeIn">
@@ -61,6 +73,7 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
           onDownload={onDownload}
           onDelete={onDelete}
           onEdit={onEdit}
+          onInpaint={onInpaint ? () => setIsInpainting(true) : undefined}
         />
         
         <InspectionSidebar 
@@ -68,8 +81,24 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
           isLoading={isLoading}
           onRegenerate={onRegenerate}
           onClose={onClose}
+          onApplyTool={onApplyTool}
+          onUsePrompt={onUsePrompt}
+          onToggleFavorite={onToggleFavorite}
         />
       </div>
+
+      {isInpainting && onInpaint && (
+        <InpaintModal
+          image={image}
+          isLoading={isLoading}
+          onClose={() => setIsInpainting(false)}
+          onApply={(maskOverlay, instruction) => {
+            onInpaint(image, maskOverlay, instruction);
+            setIsInpainting(false);
+            onClose();
+          }}
+        />
+      )}
     </div>
   );
 };
