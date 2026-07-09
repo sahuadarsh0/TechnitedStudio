@@ -19,8 +19,15 @@ export const constructCinematicPrompt = (
   basePrompt: string,
   settings: GenerationSettings
 ): string => {
+  const trimmed = basePrompt.trim();
+
+  // Raw prompt mode: send exactly what the user typed — no Director / quality appends.
+  if (settings.rawPromptOnly) {
+    return trimmed;
+  }
+
   const c: CinematicSettings = settings.cinematic;
-  const parts: string[] = [basePrompt.trim()];
+  const parts: string[] = [trimmed];
 
   // Camera Tech
   if (c.cameraType !== CameraType.NONE) {

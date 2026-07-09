@@ -83,6 +83,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <ControlPanelHeader 
           enableSounds={settings.enableSounds}
           onToggleSounds={() => handleChange('enableSounds', !settings.enableSounds)}
+          rawPromptOnly={settings.rawPromptOnly}
+          onToggleRawPromptOnly={() => handleChange('rawPromptOnly', !settings.rawPromptOnly)}
           onOpenKeySettings={() => setIsKeyModalOpen(true)}
           onClose={onClose}
         />

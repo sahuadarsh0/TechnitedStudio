@@ -42,6 +42,7 @@ export const DEFAULT_SETTINGS = {
   enableSounds: true,
   googleSearch: false,
   consistencyLock: false,
+  rawPromptOnly: false,
   cinematic: DEFAULT_CINEMATIC_SETTINGS
 };
 

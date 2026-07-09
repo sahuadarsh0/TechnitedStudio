@@ -1,10 +1,11 @@
-
 import React from 'react';
 import { KeyIcon, SoundOnIcon, SoundOffIcon, CloseIcon } from '../Icons';
 
 interface ControlPanelHeaderProps {
   enableSounds: boolean;
   onToggleSounds: () => void;
+  rawPromptOnly: boolean;
+  onToggleRawPromptOnly: () => void;
   onOpenKeySettings: () => void;
   onClose: () => void;
 }
@@ -12,6 +13,8 @@ interface ControlPanelHeaderProps {
 export const ControlPanelHeader: React.FC<ControlPanelHeaderProps> = ({
   enableSounds,
   onToggleSounds,
+  rawPromptOnly,
+  onToggleRawPromptOnly,
   onOpenKeySettings,
   onClose
 }) => {
@@ -51,6 +54,26 @@ export const ControlPanelHeader: React.FC<ControlPanelHeaderProps> = ({
              </div>
         </div>
         <h1 className="text-xl font-bold text-white tracking-tight">Studio Settings</h1>
+
+        <label
+          className="mt-4 flex items-start gap-3 cursor-pointer group select-none"
+          title="When enabled, only your typed prompt is sent — no cinematic or quality text is appended"
+        >
+          <input
+            type="checkbox"
+            checked={rawPromptOnly}
+            onChange={onToggleRawPromptOnly}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-black/40 text-laserBlue focus:ring-laserBlue focus:ring-offset-0 cursor-pointer accent-cyan-400"
+          />
+          <span className="min-w-0">
+            <span className="block text-sm text-gray-200 group-hover:text-white transition-colors">
+              Raw prompt only
+            </span>
+            <span className="block text-[10px] text-gray-500 leading-snug mt-0.5">
+              Skip Director &amp; quality appends — send exactly what you type
+            </span>
+          </span>
+        </label>
       </div>
     </div>
   );

@@ -66,4 +66,20 @@ describe('constructCinematicPrompt', () => {
     s.cinematic.angle = CameraAngle.LOW_ANGLE;
     expect(constructCinematicPrompt('x', s)).toContain(CameraAngle.LOW_ANGLE);
   });
+
+  it('returns only the typed prompt when rawPromptOnly is on', () => {
+    const s = baseSettings();
+    s.rawPromptOnly = true;
+    s.consistencyLock = true;
+    s.cinematic.cameraType = CameraType.LEICA;
+    s.cinematic.lighting = LightingStyle.STUDIO;
+
+    const out = constructCinematicPrompt('  just my words  ', s);
+    expect(out).toBe('just my words');
+    expect(out).not.toContain('ultra-realistic');
+    expect(out).not.toContain('award winning');
+    expect(out).not.toContain('8k resolution');
+    expect(out).not.toContain('shot on');
+    expect(out).not.toContain('consistent face');
+  });
 });

@@ -94,6 +94,8 @@ export interface GenerationSettings {
   enableSounds: boolean;
   googleSearch: boolean;
   consistencyLock: boolean;
+  /** When true, send only the user's typed prompt — no cinematic / quality appends. */
+  rawPromptOnly: boolean;
   cinematic: CinematicSettings;
 }
 
