@@ -1,5 +1,5 @@
 import React from 'react';
-import { KeyIcon, SoundOnIcon, SoundOffIcon, CloseIcon } from '../Icons';
+import { KeyIcon, SoundOnIcon, SoundOffIcon, CloseIcon, BedrockIcon } from '../Icons';
 
 interface ControlPanelHeaderProps {
   enableSounds: boolean;
@@ -7,6 +7,10 @@ interface ControlPanelHeaderProps {
   rawPromptOnly: boolean;
   onToggleRawPromptOnly: () => void;
   onOpenKeySettings: () => void;
+  /** Opens the AWS Bedrock credential modal. */
+  onOpenBedrockKey?: () => void;
+  /** True once a Bedrock key is stored — drives the button's lit state. */
+  bedrockUnlocked?: boolean;
   onClose: () => void;
 }
 
@@ -16,6 +20,8 @@ export const ControlPanelHeader: React.FC<ControlPanelHeaderProps> = ({
   rawPromptOnly,
   onToggleRawPromptOnly,
   onOpenKeySettings,
+  onOpenBedrockKey,
+  bedrockUnlocked = false,
   onClose
 }) => {
   return (
@@ -32,6 +38,18 @@ export const ControlPanelHeader: React.FC<ControlPanelHeaderProps> = ({
                 >
                     <KeyIcon className="w-4 h-4" />
                 </button>
+                {/* Bedrock Key Settings Button */}
+                {onOpenBedrockKey && (
+                  <button
+                      onClick={onOpenBedrockKey}
+                      className={`p-1.5 rounded-full transition-colors ${bedrockUnlocked ? 'text-[#ff9900] bg-[#ff9900]/10' : 'text-gray-600 hover:text-[#ff9900]'}`}
+                      title={bedrockUnlocked
+                        ? 'Bedrock connected — manage AWS key & region'
+                        : 'Connect AWS Bedrock to unlock Stability AI upscalers & editors'}
+                  >
+                      <BedrockIcon className="w-4 h-4" />
+                  </button>
+                )}
                 {/* Sound Toggle */}
                 <button 
                     onClick={onToggleSounds} 

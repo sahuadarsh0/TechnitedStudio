@@ -22,6 +22,12 @@ interface ControlPanelProps {
   referenceImages: string[];
   onRemoveReferenceImage: (index: number) => void;
   onAddReferenceUrl?: (dataUrl: string) => void;
+  /** Opens the AWS Bedrock credential modal (owned by App). */
+  onOpenBedrockKey?: () => void;
+  /** Files a reference image into the gallery so Bedrock services can reach it. */
+  onSendReferenceToGrid?: (dataUrl: string) => void;
+  /** True once a Bedrock key is stored. */
+  bedrockUnlocked?: boolean;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -34,6 +40,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   referenceImages,
   onRemoveReferenceImage,
   onAddReferenceUrl,
+  onOpenBedrockKey,
+  onSendReferenceToGrid,
+  bedrockUnlocked = false,
   isOpen,
   onClose
 }) => {
@@ -86,6 +95,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           rawPromptOnly={settings.rawPromptOnly}
           onToggleRawPromptOnly={() => handleChange('rawPromptOnly', !settings.rawPromptOnly)}
           onOpenKeySettings={() => setIsKeyModalOpen(true)}
+          onOpenBedrockKey={onOpenBedrockKey}
+          bedrockUnlocked={bedrockUnlocked}
           onClose={onClose}
         />
 
@@ -118,6 +129,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 uploadHistory={uploadHistory}
                 onPickFromHistory={onAddReferenceUrl}
                 onForgetHistory={forget}
+                onSendToGrid={onSendReferenceToGrid}
               />
             )}
           </div>

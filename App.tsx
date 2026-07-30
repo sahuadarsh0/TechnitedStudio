@@ -5,21 +5,30 @@ import ImageGrid from './components/ImageGrid';
 import PreviewOverlay from './components/PreviewOverlay';
 import WorkspaceControls from './components/WorkspaceControls';
 import ApiKeySettingsModal from './components/ApiKeySettingsModal';
+import BedrockKeyModal from './components/BedrockKeyModal';
+import BedrockPanel from './components/BedrockPanel';
+import CleanDownloadModal from './components/CleanDownloadModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import { useAudioRecorder } from './hooks/useAudioRecorder';
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useEditHistory } from './hooks/useEditHistory';
 import { usePromptOptimization } from './hooks/usePromptOptimization';
 import { usePresets } from './hooks/usePresets';
+import { useFolders } from './hooks/useFolders';
+import { useFullImage } from './hooks/useFullImage';
 import { HoverPreviewProvider } from './contexts/HoverPreviewContext';
 import { StudioProvider, useStudio } from './contexts/StudioContext';
 
 import { transcribeAudio } from './services/geminiService';
 import { playSound } from './services/soundService';
 import { getEffectiveApiKey } from './services/apiKeyService';
+import { hasBedrockAccess } from './services/bedrockKeyService';
 import { constructCinematicPrompt } from './services/promptComposer';
 import { editImage, editImageWithMask } from './services/imageService';
-import { GenerationSettings, GeneratedImage } from './types';
+import { resolveFullImage } from './services/storageService';
+import { uuid } from './services/uuid';
+import { GenerationSettings, GeneratedImage, BedrockModel, BedrockParamValues } from './types';
 
 function StudioApp() {
   const { settings, setSettings, prompt, setPrompt, referenceImages, addReferenceImages, removeReferenceImage } = useStudio();
@@ -32,8 +41,23 @@ function StudioApp() {
 
   const { 
     images, isGenerating, error, showSuccessFlash, 
-    generate, stopAll, stopImage, removeImages, clearAll, clearError, updateImages, prependImage, toggleFavorite, retryImage, runEdit 
+    generate, stopAll, stopImage, removeImages, clearAll, clearError, updateImages, prependImage, toggleFavorite, retryImage, runEdit, runBedrock, assignFolder 
   } = useImageGeneration({ settings });
+
+  const {
+    folders, createFolder, renameFolder, toggleCollapse, collapseAll, removeFolder
+  } = useFolders();
+
+  // Bedrock + clean-export modal targets
+  const [isBedrockKeyOpen, setIsBedrockKeyOpen] = useState(false);
+  const [bedrockTarget, setBedrockTarget] = useState<GeneratedImage | null>(null);
+  const [exportTarget, setExportTarget] = useState<GeneratedImage | null>(null);
+  const [bedrockUnlockedAt, setBedrockUnlockedAt] = useState(0);
+  const [bedrockUnlocked, setBedrockUnlocked] = useState<boolean>(hasBedrockAccess());
+
+  // Resolve full-resolution sources for the panels that need real pixels.
+  const { src: bedrockSrc } = useFullImage(bedrockTarget);
+  const { src: exportSrc } = useFullImage(exportTarget);
 
   const {
     editingImage, editHistory, historyIndex,
@@ -119,8 +143,10 @@ function StudioApp() {
           isImageToImage: true // ALWAYS USE IMG2IMG TO PRESERVE SUBJECT
       };
 
-      // Always pass the current image as reference to maintain consistency
-      const specificRefs = [image.url];
+      // Always pass the current image as reference to maintain consistency.
+      // Records from storage carry no inline pixels, so resolve them first.
+      const fullSrc = await resolveFullImage(image);
+      const specificRefs = [fullSrc];
 
       let activePrompt = image.prompt;
       
@@ -151,7 +177,7 @@ function StudioApp() {
         isImageToImage: true // Use source image for compositional consistency
     };
 
-    const specificRefs = [image.url];
+    const specificRefs = [await resolveFullImage(image)];
 
     try {
         await generate(
@@ -164,6 +190,25 @@ function StudioApp() {
     } catch (e) {
         console.error("Variation generation failed", e);
     }
+  };
+
+  /**
+   * Files a reference image into the gallery as a real record.
+   *
+   * Bedrock / Stability services only operate on gallery images (they need a
+   * stored blob and an id), so an uploaded reference is unreachable until it
+   * has been promoted here. This is that bridge.
+   */
+  const handleSendReferenceToGrid = async (dataUrl: string) => {
+    await prependImage({
+      id: uuid(),
+      url: dataUrl,
+      prompt: 'Uploaded reference',
+      timestamp: Date.now(),
+      settings,
+      status: 'completed',
+    });
+    playSound('success', settings.enableSounds);
   };
 
   const handleStartEdit = (image: GeneratedImage) => {
@@ -189,17 +234,19 @@ function StudioApp() {
 
   // Region (brush-mask) edit: composite mask overlay + instruction through the edit pipeline.
   const handleInpaint = async (image: GeneratedImage, maskOverlay: string, instruction: string) => {
+    const fullSrc = await resolveFullImage(image);
     await runEdit(image, (signal) =>
-      editImageWithMask(image.url, maskOverlay, instruction, image.settings, signal)
+      editImageWithMask(fullSrc, maskOverlay, instruction, image.settings, signal)
     );
   };
 
   // One-tap tools (background remover / upscaler) via the edit pipeline.
   const handleApplyTool = async (image: GeneratedImage, tool: 'removeBg' | 'upscale') => {
+    const fullSrc = await resolveFullImage(image);
     if (tool === 'removeBg') {
       await runEdit(image, (signal) =>
         editImage(
-          [image.url],
+          [fullSrc],
           'Remove the background completely and make it transparent. Keep the main subject perfectly intact with clean edges. Output a transparent PNG.',
           { ...image.settings, batchSize: 1 },
           signal
@@ -210,7 +257,7 @@ function StudioApp() {
       const nextRes = image.settings.resolution === '4K' ? '4K' : image.settings.resolution === '2K' ? '4K' : '2K';
       await runEdit(image, (signal) =>
         editImage(
-          [image.url],
+          [fullSrc],
           'Upscale this image to a higher resolution with enhanced sharpness and fine detail. Keep the composition and content identical.',
           { ...image.settings, resolution: nextRes as GenerationSettings['resolution'], batchSize: 1 },
           signal
@@ -281,6 +328,9 @@ function StudioApp() {
         referenceImages={referenceImages}
         onRemoveReferenceImage={handleRemoveReference}
         onAddReferenceUrl={(url) => addReferenceImages([url])}
+        onOpenBedrockKey={() => setIsBedrockKeyOpen(true)}
+        onSendReferenceToGrid={handleSendReferenceToGrid}
+        bedrockUnlocked={bedrockUnlocked}
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
@@ -311,6 +361,15 @@ function StudioApp() {
           onInpaint={handleInpaint}
           onApplyTool={handleApplyTool}
           onRetry={retryImage}
+          folders={folders}
+          onCreateFolder={createFolder}
+          onRenameFolder={renameFolder}
+          onToggleFolderCollapse={toggleCollapse}
+          onCollapseAllFolders={collapseAll}
+          onRemoveFolder={removeFolder}
+          onAssignFolder={assignFolder}
+          onOpenBedrock={(img) => setBedrockTarget(img)}
+          onOpenCleanExport={(img) => setExportTarget(img)}
         />
 
         <WorkspaceControls 
@@ -345,6 +404,41 @@ function StudioApp() {
           isOpen={isKeyModalOpen}
           onClose={() => setIsKeyModalOpen(false)}
           onSuccess={() => setHasKey(true)}
+      />
+
+      {/* Bedrock credentials */}
+      <BedrockKeyModal
+          isOpen={isBedrockKeyOpen}
+          onClose={() => setIsBedrockKeyOpen(false)}
+          onSuccess={() => {
+            setBedrockUnlockedAt(Date.now());
+            setBedrockUnlocked(true);
+          }}
+      />
+
+      {/* Bedrock Stability AI service launcher */}
+      <ErrorBoundary label="Bedrock Panel">
+        <BedrockPanel
+          key={bedrockUnlockedAt}
+          isOpen={!!bedrockTarget}
+          onClose={() => setBedrockTarget(null)}
+          image={bedrockTarget}
+          imageSrc={bedrockSrc}
+          isBusy={isGenerating}
+          onRequestKey={() => setIsBedrockKeyOpen(true)}
+          onRun={(modelId, values) => {
+            if (bedrockTarget) runBedrock(bedrockTarget, modelId, values);
+            setBedrockTarget(null);
+          }}
+        />
+      </ErrorBoundary>
+
+      {/* Metadata-stripping export */}
+      <CleanDownloadModal
+          isOpen={!!exportTarget}
+          onClose={() => setExportTarget(null)}
+          image={exportTarget}
+          imageSrc={exportSrc}
       />
     </div>
     </HoverPreviewProvider>

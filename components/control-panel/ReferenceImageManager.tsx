@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useHoverPreview } from '../../hooks/useHoverPreview';
-import { CloseIcon, PlusIcon } from '../Icons';
+import { CloseIcon, PlusIcon, BedrockIcon } from '../Icons';
 import { UploadEntry } from '../../services/uploadHistoryService';
 
 interface ReferenceImageManagerProps {
@@ -14,17 +14,24 @@ interface ReferenceImageManagerProps {
   uploadHistory?: UploadEntry[];
   onPickFromHistory?: (dataUrl: string) => void;
   onForgetHistory?: (id: string) => void;
+  /**
+   * Pushes a reference image into the gallery as a real record, which is the
+   * only route by which Bedrock / Stability services can operate on it.
+   */
+  onSendToGrid?: (dataUrl: string) => void;
 }
 
 // Sub-component for Reference Images to allow hook usage
-const ReferenceThumbnail = ({ 
-    img, 
-    index, 
-    onRemove 
-}: { 
-    img: string, 
-    index: number, 
-    onRemove: (idx: number) => void 
+const ReferenceThumbnail: React.FC<{
+    img: string,
+    index: number,
+    onRemove: (idx: number) => void,
+    onSendToGrid?: (dataUrl: string) => void
+}> = ({
+    img,
+    index,
+    onRemove,
+    onSendToGrid
 }) => {
     const { handleMouseEnter, handleMouseLeave } = useHoverPreview({ url: img, prompt: "Source Material" });
 
@@ -46,11 +53,22 @@ const ReferenceThumbnail = ({
             >
                 <CloseIcon className="w-3 h-3" />
             </button>
+            {/* Send to gallery — the entry point for Bedrock / Stability services */}
+            {onSendToGrid && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onSendToGrid(img); }}
+                    aria-label={`Send reference ${index + 1} to gallery for Bedrock editing`}
+                    title="Send to gallery → then open it and hit Bedrock to upscale / inpaint / erase"
+                    className="absolute bottom-1 right-1 p-1 bg-black/70 rounded-full text-[#ff9900] hover:bg-[#ff9900] hover:text-black opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                >
+                    <BedrockIcon className="w-3 h-3" strokeWidth={2.5} />
+                </button>
+            )}
         </div>
     );
 };
 
-export const ReferenceImageManager: React.FC<ReferenceImageManagerProps> = ({ images, onUpload, onRemove, maxImages, consistencyLock, onToggleConsistency, uploadHistory = [], onPickFromHistory, onForgetHistory }) => {
+export const ReferenceImageManager: React.FC<ReferenceImageManagerProps> = ({ images, onUpload, onRemove, maxImages, consistencyLock, onToggleConsistency, uploadHistory = [], onPickFromHistory, onForgetHistory, onSendToGrid }) => {
   const canAddMore = images.length < maxImages;
   const recent = uploadHistory.filter((e) => !images.includes(e.dataUrl)).slice(0, 6);
 
@@ -66,7 +84,8 @@ export const ReferenceImageManager: React.FC<ReferenceImageManagerProps> = ({ im
                 key={idx} 
                 img={img} 
                 index={idx} 
-                onRemove={onRemove} 
+                onRemove={onRemove}
+                onSendToGrid={onSendToGrid}
             />
         ))}
         {images.length < maxImages && (
