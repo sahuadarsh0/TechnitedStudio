@@ -1,7 +1,7 @@
 import { uuid } from './uuid';
 
 const DB_NAME = 'TechnitedStudioDB';
-const DB_VERSION = 3; // v3 adds the uploadHistory store
+const DB_VERSION = 4; // keep in lockstep with storageService / presetService
 const STORE_UPLOADS = 'uploadHistory';
 
 export interface UploadEntry {
@@ -27,6 +27,10 @@ const openDB = (): Promise<IDBDatabase> => {
       if (!db.objectStoreNames.contains('promptHistory')) db.createObjectStore('promptHistory', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('directorPresets')) db.createObjectStore('directorPresets', { keyPath: 'id' });
       if (!db.objectStoreNames.contains(STORE_UPLOADS)) db.createObjectStore(STORE_UPLOADS, { keyPath: 'id' });
+      // v4 stores — every opener must be able to create these, because
+      // whichever service opens the DB first runs the upgrade transaction.
+      if (!db.objectStoreNames.contains('imageBlobs')) db.createObjectStore('imageBlobs', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { keyPath: 'id' });
     };
   });
 };

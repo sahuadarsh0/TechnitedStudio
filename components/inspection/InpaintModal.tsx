@@ -1,6 +1,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { GeneratedImage } from '../../types';
+import { useFullImage } from '../../hooks/useFullImage';
 import { EraserIcon, BoltIcon } from '../Icons';
 
 interface InpaintModalProps {
@@ -18,15 +19,18 @@ interface InpaintModalProps {
 export const InpaintModal: React.FC<InpaintModalProps> = ({ image, onClose, onApply, isLoading }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const { src: fullSrc } = useFullImage(image);
   const [brushSize, setBrushSize] = useState(48);
   const [instruction, setInstruction] = useState('');
   const [hasMask, setHasMask] = useState(false);
   const drawing = useRef(false);
 
   // Load the source image into the canvas at natural resolution.
+  // `fullSrc` resolves the real pixels from storage — masking against a
+  // thumbnail would produce a mask at the wrong scale.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !fullSrc) return;
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
@@ -36,8 +40,8 @@ export const InpaintModal: React.FC<InpaintModalProps> = ({ image, onClose, onAp
       const ctx = canvas.getContext('2d');
       if (ctx) ctx.drawImage(img, 0, 0);
     };
-    img.src = image.url;
-  }, [image.url]);
+    img.src = fullSrc;
+  }, [fullSrc]);
 
   const getPos = (e: React.PointerEvent) => {
     const canvas = canvasRef.current!;

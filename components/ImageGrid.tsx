@@ -1,12 +1,16 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { GeneratedImage, Resolution, AspectRatio } from '../types';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { GeneratedImage, Resolution, AspectRatio, Folder } from '../types';
 import { GalleryHeader } from './image-grid/GalleryHeader';
 import { InspectionModal } from './image-grid/InspectionModal';
 import { DeleteModal } from './image-grid/DeleteModal';
 import { EmptyState } from './image-grid/EmptyState';
 import { GridContent } from './image-grid/GridContent';
+import { FolderGroup } from './image-grid/FolderGroup';
+import { FolderBar } from './image-grid/FolderBar';
 import { downloadImagesAsZip } from '../services/exportService';
+import { resolveFullImage } from '../services/storageService';
+import { stripMetadata } from '../services/thumbnailService';
 
 export type GallerySort = 'newest' | 'oldest' | 'favorites';
 
@@ -27,6 +31,17 @@ interface ImageGridProps {
   onInpaint?: (image: GeneratedImage, maskOverlay: string, instruction: string) => void;
   onApplyTool?: (image: GeneratedImage, tool: 'removeBg' | 'upscale') => void;
   onRetry?: (id: string) => void;
+  // ─── Folders ───
+  folders?: Folder[];
+  onCreateFolder?: (name: string) => Promise<Folder>;
+  onRenameFolder?: (id: string, name: string) => void;
+  onToggleFolderCollapse?: (id: string) => void;
+  onCollapseAllFolders?: (collapsed: boolean) => void;
+  onRemoveFolder?: (id: string) => void;
+  onAssignFolder?: (ids: string[], folderId: string | null) => void;
+  // ─── Bedrock ───
+  onOpenBedrock?: (image: GeneratedImage) => void;
+  onOpenCleanExport?: (image: GeneratedImage) => void;
 }
 
 const ImageGrid: React.FC<ImageGridProps> = ({ 
@@ -45,10 +60,20 @@ const ImageGrid: React.FC<ImageGridProps> = ({
   onUseStarter,
   onInpaint,
   onApplyTool,
-  onRetry
+  onRetry,
+  folders = [],
+  onCreateFolder,
+  onRenameFolder,
+  onToggleFolderCollapse,
+  onCollapseAllFolders,
+  onRemoveFolder,
+  onAssignFolder,
+  onOpenBedrock,
+  onOpenCleanExport
 }) => {
   const [viewingImage, setViewingImage] = useState<GeneratedImage | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [groupByFolder, setGroupByFolder] = useState(true);
   
   // Filter State
   const [activeResolution, setActiveResolution] = useState<Resolution | null>(null);
@@ -87,6 +112,34 @@ const ImageGrid: React.FC<ImageGridProps> = ({
       setSearchQuery('');
       setSortOrder('newest');
   };
+
+  /**
+   * Buckets the filtered images by folder. Generating placeholders are pulled
+   * out and pinned above every group so in-flight work is always visible
+   * regardless of which folder it will land in.
+   */
+  const grouped = useMemo(() => {
+    const pending = filteredImages.filter(img => img.status === 'generating' || img.status === 'error');
+    const settled = filteredImages.filter(img => img.status !== 'generating' && img.status !== 'error');
+
+    const byFolder = new Map<string, GeneratedImage[]>();
+    const unsorted: GeneratedImage[] = [];
+
+    for (const img of settled) {
+      if (img.folderId && folders.some(f => f.id === img.folderId)) {
+        const list = byFolder.get(img.folderId) || [];
+        list.push(img);
+        byFolder.set(img.folderId, list);
+      } else {
+        unsorted.push(img);
+      }
+    }
+
+    return { pending, byFolder, unsorted };
+  }, [filteredImages, folders]);
+
+  const folderNameFor = useCallback((id?: string) => 
+    id ? folders.find(f => f.id === id)?.name : undefined, [folders]);
 
   // Delete Confirmation State
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -229,10 +282,13 @@ const ImageGrid: React.FC<ImageGridProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [filteredImages, deleteConfirmation.isOpen, viewingImage, selectedIds, confirmDelete, cancelDelete, requestDeleteSelected, handleSelectAll]);
 
-  const handleDownload = (e: React.MouseEvent, image: GeneratedImage) => {
+  const handleDownload = async (e: React.MouseEvent, image: GeneratedImage) => {
     e.stopPropagation();
+    // Gallery records hold only a thumbnail; fetch the real pixels first.
+    const src = await resolveFullImage(image);
+    if (!src) return;
     const link = document.createElement('a');
-    link.href = image.url;
+    link.href = src;
     const date = new Date(image.timestamp);
     const timestamp = date.toISOString().replace(/[-:]/g, '').replace('T', '-').split('.')[0];
     link.download = `Technited_Studio_${timestamp}.png`;
@@ -245,7 +301,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({
     const selectedImages = filteredImages.filter(img => selectedIds.has(img.id) && img.status === 'completed');
     if (selectedImages.length === 0) return;
     if (selectedImages.length === 1) {
-        handleDownload({ stopPropagation: () => {} } as React.MouseEvent, selectedImages[0]);
+        await handleDownload({ stopPropagation: () => {} } as React.MouseEvent, selectedImages[0]);
         return;
     }
     // Multiple: bundle into a single zip
@@ -254,17 +310,17 @@ const ImageGrid: React.FC<ImageGridProps> = ({
     } catch (e) {
         console.warn('Zip export failed, falling back to sequential', e);
         for (const image of selectedImages) {
-            handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
+            await handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
             await new Promise(r => setTimeout(r, 250));
         }
     }
   };
 
   const handleDownloadAll = async () => {
-    const completed = filteredImages.filter(img => img.status === 'completed' && img.url);
+    const completed = filteredImages.filter(img => img.status === 'completed');
     if (completed.length === 0) return;
     if (completed.length === 1) {
-        handleDownload({ stopPropagation: () => {} } as React.MouseEvent, completed[0]);
+        await handleDownload({ stopPropagation: () => {} } as React.MouseEvent, completed[0]);
         return;
     }
     try {
@@ -272,7 +328,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({
     } catch (e) {
         console.warn('Zip export failed, falling back to sequential', e);
         for (const image of completed) {
-            handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
+            await handleDownload({ stopPropagation: () => {} } as React.MouseEvent, image);
             await new Promise(r => setTimeout(r, 250));
         }
     }
@@ -331,6 +387,22 @@ const ImageGrid: React.FC<ImageGridProps> = ({
         onSortChange={setSortOrder}
       />
 
+      {/* Folder toolbar */}
+      {onCreateFolder && (
+        <FolderBar
+          folders={folders}
+          selectedCount={selectedIds.size}
+          groupByFolder={groupByFolder}
+          onToggleGrouping={setGroupByFolder}
+          onCreateFolder={(name) => { onCreateFolder(name); }}
+          onMoveSelected={(folderId) => {
+            onAssignFolder?.(Array.from(selectedIds), folderId);
+            setSelectedIds(new Set());
+          }}
+          onCollapseAll={(c) => onCollapseAllFolders?.(c)}
+        />
+      )}
+
       {/* Grid Content with Extended Bottom Padding for Mobile */}
       <div className="flex-1 overflow-y-auto p-2 md:p-8 pb-56 md:pb-72 custom-scrollbar relative">
         {isEmpty ? (
@@ -339,6 +411,72 @@ const ImageGrid: React.FC<ImageGridProps> = ({
                 onClearFilters={handleClearFilters} 
                 onUseStarter={onUseStarter}
             />
+        ) : groupByFolder && folders.length > 0 ? (
+            <>
+              {/* In-flight and failed work stays pinned at the top. */}
+              {grouped.pending.length > 0 && (
+                <div className="mb-6">
+                  <GridContent
+                    images={grouped.pending}
+                    isLoading={isLoading}
+                    skeletonCount={0}
+                    selectedIds={selectedIds}
+                    onToggleSelection={toggleSelection}
+                    onImageClick={handleImageClick}
+                    onDeleteOne={requestDeleteOne}
+                    onStop={onStopImage}
+                    onToggleFavorite={onToggleFavorite}
+                    onRetry={onRetry}
+                  />
+                </div>
+              )}
+
+              {folders.map((folder) => (
+                <FolderGroup
+                  key={folder.id}
+                  folder={folder}
+                  images={grouped.byFolder.get(folder.id) || []}
+                  selectedIds={selectedIds}
+                  onToggleSelection={toggleSelection}
+                  onImageClick={handleImageClick}
+                  onDeleteOne={requestDeleteOne}
+                  onStop={onStopImage}
+                  onToggleFavorite={onToggleFavorite}
+                  onRetry={onRetry}
+                  onToggleCollapse={(id) => onToggleFolderCollapse?.(id)}
+                  onDeleteFolderContents={(_fid, ids) =>
+                    setDeleteConfirmation({ isOpen: true, type: 'selected', ids })
+                  }
+                  onDeleteFolderOnly={(id) => {
+                    const ids = (grouped.byFolder.get(id) || []).map(i => i.id);
+                    if (ids.length) onAssignFolder?.(ids, null);
+                    onRemoveFolder?.(id);
+                  }}
+                  onRename={(id, name) => onRenameFolder?.(id, name)}
+                  onSelectAllInFolder={(ids) => setSelectedIds(new Set(ids))}
+                />
+              ))}
+
+              {/* Unsorted always last so folders lead the view. */}
+              <FolderGroup
+                folder={null}
+                images={grouped.unsorted}
+                selectedIds={selectedIds}
+                onToggleSelection={toggleSelection}
+                onImageClick={handleImageClick}
+                onDeleteOne={requestDeleteOne}
+                onStop={onStopImage}
+                onToggleFavorite={onToggleFavorite}
+                onRetry={onRetry}
+                onToggleCollapse={() => {}}
+                onDeleteFolderContents={(_fid, ids) =>
+                  setDeleteConfirmation({ isOpen: true, type: 'selected', ids })
+                }
+                onDeleteFolderOnly={() => {}}
+                onRename={() => {}}
+                onSelectAllInFolder={(ids) => setSelectedIds(new Set(ids))}
+              />
+            </>
         ) : (
             <GridContent 
                 images={filteredImages}
@@ -351,6 +489,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({
                 onStop={onStopImage}
                 onToggleFavorite={onToggleFavorite}
                 onRetry={onRetry}
+                folderNameFor={folderNameFor}
             />
         )}
       </div>
@@ -374,6 +513,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({
           onApplyTool={onApplyTool}
           onUsePrompt={onUsePrompt}
           onToggleFavorite={onToggleFavorite}
+          onOpenBedrock={onOpenBedrock}
+          onOpenCleanExport={onOpenCleanExport}
         />
       )}
 

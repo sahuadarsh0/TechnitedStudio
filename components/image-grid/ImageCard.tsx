@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GeneratedImage } from '../../types';
 import { useHoverPreview } from '../../hooks/useHoverPreview';
-import { CheckIcon, TrashIcon, StarIcon, ErrorIcon } from '../Icons';
+import { CheckIcon, TrashIcon, StarIcon, ErrorIcon, FolderIcon, BedrockIcon } from '../Icons';
 
 interface ImageCardProps {
   image: GeneratedImage;
@@ -13,6 +13,8 @@ interface ImageCardProps {
   onStop?: (id: string) => void; // Added for stopping generation
   onToggleFavorite?: (id: string) => void;
   onRetry?: (id: string) => void;
+  /** Name of the folder this card sits in, shown as a subtle badge. */
+  folderName?: string;
 }
 
 export const ImageCard: React.FC<ImageCardProps> = ({ 
@@ -23,10 +25,20 @@ export const ImageCard: React.FC<ImageCardProps> = ({
   onDelete,
   onStop,
   onToggleFavorite,
-  onRetry
+  onRetry,
+  folderName
 }) => {
   const isGenerating = image.status === 'generating';
   const [elapsed, setElapsed] = useState(0);
+
+  /**
+   * The grid renders the lightweight thumbnail, never the full-resolution
+   * image. `image.url` is empty for anything loaded from storage v4 — the full
+   * pixels are fetched on demand when the detail view opens. Legacy v3 records
+   * that still carry an inline url fall back to it so nothing goes blank
+   * before the background migration finishes.
+   */
+  const previewSrc = image.thumbnail || image.url;
 
   // Restore Timer Logic
   useEffect(() => {
@@ -41,7 +53,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
   }, [isGenerating]);
 
   const { handleMouseEnter, handleMouseLeave } = useHoverPreview({
-    url: image.url,
+    url: previewSrc,
     prompt: image.prompt,
     resolution: image.settings.resolution,
     aspectRatio: image.settings.aspectRatio,
@@ -194,7 +206,23 @@ export const ImageCard: React.FC<ImageCardProps> = ({
         </button>
       </div>
 
-      <img src={image.url} alt={image.prompt.slice(0, 120) || 'Generated asset'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 relative z-0" loading="lazy"/>
+      <img src={previewSrc} alt={image.prompt.slice(0, 120) || 'Generated asset'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 relative z-0" loading="lazy" decoding="async"/>
+
+      {/* Bottom-left badges: provider + folder */}
+      <div className="absolute bottom-2 left-2 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {image.provider === 'bedrock' && (
+          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm border border-[#ff9900]/30 text-[8px] font-mono uppercase tracking-wider text-[#ff9900]">
+            <BedrockIcon className="w-2.5 h-2.5" strokeWidth={2} />
+            Bedrock
+          </span>
+        )}
+        {folderName && (
+          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm border border-white/10 text-[8px] font-mono uppercase tracking-wider text-gray-300 max-w-[100px] truncate">
+            <FolderIcon className="w-2.5 h-2.5" strokeWidth={2} />
+            {folderName}
+          </span>
+        )}
+      </div>
       
       {/* Selected Overlay Highlight */}
       {isSelected && <div className="absolute inset-0 bg-laserBlue/10 pointer-events-none z-10"></div>}

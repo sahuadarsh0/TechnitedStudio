@@ -2,6 +2,7 @@
 import React from 'react';
 import { GeneratedImage } from '../../types';
 import { useImageInspector } from '../../hooks/useImageInspector';
+import { useFullImage } from '../../hooks/useFullImage';
 import { ChevronLeftIcon, ChevronRightIcon, ZoomOutIcon, ZoomInIcon, VariationsIcon, DownloadIcon, TrashIcon, EditIcon, EraserIcon } from '../Icons';
 
 interface InspectionViewerProps {
@@ -27,6 +28,9 @@ export const InspectionViewer: React.FC<InspectionViewerProps> = ({
     handleWheel, handleZoomIn, handleZoomOut, handleToggleFit,
     handlePointerDown, handlePointerMove, handlePointerUp
   } = useImageInspector(image, onPrev, onNext);
+
+  // Detail view needs real pixels; the gallery only carried a thumbnail.
+  const { src: fullSrc, isLoading: isResolving } = useFullImage(image);
 
   return (
     <div 
@@ -76,7 +80,7 @@ export const InspectionViewer: React.FC<InspectionViewerProps> = ({
         }}
       >
         <img 
-          src={image.url} 
+          src={fullSrc} 
           className="max-w-none max-h-none pointer-events-none" 
           style={{ 
             imageRendering: zoom > 2 ? 'pixelated' : 'auto',
@@ -87,6 +91,15 @@ export const InspectionViewer: React.FC<InspectionViewerProps> = ({
           alt="Inspection"
         />
       </div>
+
+      {/* Full-resolution fetch indicator: the grid only holds thumbnails, so the
+          real pixels stream in from IndexedDB when this view opens. */}
+      {isResolving && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10">
+          <span className="w-1.5 h-1.5 rounded-full bg-laserBlue animate-pulse"></span>
+          <span className="text-[10px] font-mono uppercase tracking-widest text-gray-400">Loading full resolution</span>
+        </div>
+      )}
 
       {/* FLOATING GLASS DOCK */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1.5 md:p-2 bg-[#121212]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] z-50 animate-slideUp scale-90 md:scale-100 origin-bottom">

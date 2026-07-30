@@ -1,4 +1,5 @@
 import { GeneratedImage } from '../types';
+import { resolveFullImage } from './storageService';
 
 export type ExportFormat = 'png' | 'jpeg' | 'webp';
 
@@ -51,7 +52,9 @@ const triggerDownload = (blob: Blob, filename: string) => {
 };
 
 export const downloadImageAs = async (image: GeneratedImage, format: ExportFormat) => {
-  const blob = await convertImage(image.url, format);
+  // Resolve real pixels: gallery records only carry a thumbnail.
+  const src = await resolveFullImage(image);
+  const blob = await convertImage(src, format);
   const ts = new Date(image.timestamp).toISOString().replace(/[-:]/g, '').replace('T', '-').split('.')[0];
   triggerDownload(blob, `Technited_${ts}.${format}`);
 };
@@ -154,15 +157,19 @@ export const buildZip = (files: { name: string; data: Uint8Array }[]): Blob => {
 };
 
 export const downloadImagesAsZip = async (images: GeneratedImage[], format: ExportFormat = 'png') => {
-  const completed = images.filter((i) => i.status === 'completed' && i.url);
-  const files = await Promise.all(
-    completed.map(async (img, idx) => {
-      const blob = await convertImage(img.url, format);
-      const buf = new Uint8Array(await blob.arrayBuffer());
-      const ts = new Date(img.timestamp).toISOString().replace(/[-:]/g, '').replace('T', '-').split('.')[0];
-      return { name: `Technited_${String(idx + 1).padStart(3, '0')}_${ts}.${format}`, data: buf };
-    })
-  );
+  const completed = images.filter((i) => i.status === 'completed');
+  // Sequential, not Promise.all: resolving many 4K blobs at once is what used
+  // to spike memory. One at a time keeps the peak footprint bounded.
+  const files: { name: string; data: Uint8Array }[] = [];
+  for (let idx = 0; idx < completed.length; idx++) {
+    const img = completed[idx];
+    const src = await resolveFullImage(img);
+    if (!src) continue;
+    const blob = await convertImage(src, format);
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    const ts = new Date(img.timestamp).toISOString().replace(/[-:]/g, '').replace('T', '-').split('.')[0];
+    files.push({ name: `Technited_${String(idx + 1).padStart(3, '0')}_${ts}.${format}`, data: buf });
+  }
   const zip = buildZip(files);
   triggerDownload(zip, `Technited_Studio_${Date.now()}.zip`);
 };

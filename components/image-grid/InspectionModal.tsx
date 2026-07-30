@@ -23,6 +23,8 @@ interface InspectionModalProps {
   onApplyTool?: (image: GeneratedImage, tool: 'removeBg' | 'upscale') => void;
   onUsePrompt?: (image: GeneratedImage) => void;
   onToggleFavorite?: (id: string) => void;
+  onOpenBedrock?: (image: GeneratedImage) => void;
+  onOpenCleanExport?: (image: GeneratedImage) => void;
 }
 
 export const InspectionModal: React.FC<InspectionModalProps> = ({
@@ -41,7 +43,9 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
   onInpaint,
   onApplyTool,
   onUsePrompt,
-  onToggleFavorite
+  onToggleFavorite,
+  onOpenBedrock,
+  onOpenCleanExport
 }) => {
   const [isInpainting, setIsInpainting] = useState(false);
 
@@ -84,6 +88,8 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
           onApplyTool={onApplyTool}
           onUsePrompt={onUsePrompt}
           onToggleFavorite={onToggleFavorite}
+          onOpenBedrock={onOpenBedrock}
+          onOpenCleanExport={onOpenCleanExport}
         />
       </div>
 

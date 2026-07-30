@@ -14,6 +14,8 @@ interface GridContentProps {
   onStop?: (id: string) => void;
   onToggleFavorite?: (id: string) => void;
   onRetry?: (id: string) => void;
+  /** Resolves a folder name for the card badge in flat (ungrouped) view. */
+  folderNameFor?: (folderId?: string) => string | undefined;
 }
 
 export const GridContent: React.FC<GridContentProps> = ({
@@ -24,7 +26,8 @@ export const GridContent: React.FC<GridContentProps> = ({
   onDeleteOne,
   onStop,
   onToggleFavorite,
-  onRetry
+  onRetry,
+  folderNameFor
 }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
@@ -39,6 +42,7 @@ export const GridContent: React.FC<GridContentProps> = ({
           onStop={onStop}
           onToggleFavorite={onToggleFavorite}
           onRetry={onRetry}
+          folderName={folderNameFor?.(image.folderId)}
         />
       ))}
     </div>

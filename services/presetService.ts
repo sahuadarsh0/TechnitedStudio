@@ -2,7 +2,7 @@ import { CinematicSettings, GenerationSettings } from '../types';
 import { uuid } from './uuid';
 
 const DB_NAME = 'TechnitedStudioDB';
-const DB_VERSION = 3; // keep in lockstep with storageService / uploadHistoryService
+const DB_VERSION = 4; // keep in lockstep with storageService / uploadHistoryService
 const STORE_IMAGES = 'images';
 const STORE_PROMPTS = 'promptHistory';
 const STORE_PRESETS = 'directorPresets';
@@ -44,6 +44,14 @@ const openDB = (): Promise<IDBDatabase> => {
       }
       if (!db.objectStoreNames.contains('uploadHistory')) {
         db.createObjectStore('uploadHistory', { keyPath: 'id' });
+      }
+      // v4 stores — every opener must be able to create these, because
+      // whichever service opens the DB first runs the upgrade transaction.
+      if (!db.objectStoreNames.contains('imageBlobs')) {
+        db.createObjectStore('imageBlobs', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('folders')) {
+        db.createObjectStore('folders', { keyPath: 'id' });
       }
     };
   });
