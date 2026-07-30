@@ -46,6 +46,7 @@ export const extractImageFromResponse = (
     timestamp: Date.now(),
     settings: settings,
     sources: sources.length > 0 ? sources : undefined,
-    generationTime: duration
+    generationTime: duration,
+    provider: 'gemini'
   } as GeneratedImage;
 };

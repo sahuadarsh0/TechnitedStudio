@@ -4,7 +4,7 @@ import { GeneratedImage, Resolution, AspectRatio, AIModel, CinematicSettings } f
 import { ASPECT_RATIOS, MODELS } from '../../constants';
 import { DirectorsControl } from '../control-panel/DirectorsControl';
 import { downloadImageAs, ExportFormat } from '../../services/exportService';
-import { EraserIcon, UpscaleIcon, HistoryIcon, StarIcon, DownloadIcon } from '../Icons';
+import { EraserIcon, UpscaleIcon, HistoryIcon, StarIcon, DownloadIcon, BedrockIcon, ShieldIcon } from '../Icons';
 
 interface InspectionSidebarProps {
   image: GeneratedImage;
@@ -14,9 +14,11 @@ interface InspectionSidebarProps {
   onApplyTool?: (image: GeneratedImage, tool: 'removeBg' | 'upscale') => void;
   onUsePrompt?: (image: GeneratedImage) => void;
   onToggleFavorite?: (id: string) => void;
+  onOpenBedrock?: (image: GeneratedImage) => void;
+  onOpenCleanExport?: (image: GeneratedImage) => void;
 }
 
-export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isLoading, onRegenerate, onClose, onApplyTool, onUsePrompt, onToggleFavorite }) => {
+export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isLoading, onRegenerate, onClose, onApplyTool, onUsePrompt, onToggleFavorite, onOpenBedrock, onOpenCleanExport }) => {
   const [copied, setCopied] = useState(false);
   const modelLabel = MODELS.find(m => m.id === image.settings.model)?.label || image.settings.model;
 
@@ -92,6 +94,25 @@ export const InspectionSidebar: React.FC<InspectionSidebarProps> = ({ image, isL
               <UpscaleIcon className="w-3.5 h-3.5" /> Upscale
             </button>
           </>
+        )}
+        {onOpenBedrock && (
+          <button
+            onClick={() => onOpenBedrock(image)}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border bg-[#ff9900]/10 border-[#ff9900]/30 text-[#ff9900] hover:bg-[#ff9900]/20 text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+            title="Bedrock Stability AI services: upscale, inpaint, outpaint, erase, recolor, style transfer"
+          >
+            <BedrockIcon className="w-3.5 h-3.5" /> Bedrock
+          </button>
+        )}
+        {onOpenCleanExport && (
+          <button
+            onClick={() => onOpenCleanExport(image)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-[10px] font-bold uppercase tracking-wider transition-all"
+            title="Export with all metadata stripped (EXIF, IPTC, XMP, C2PA)"
+          >
+            <ShieldIcon className="w-3.5 h-3.5" /> Clean Export
+          </button>
         )}
       </div>
       

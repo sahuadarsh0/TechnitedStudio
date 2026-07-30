@@ -22,6 +22,64 @@ export enum AIModel {
   PRO = "gemini-3-pro-image"
 }
 
+// ─── Bedrock / Stability AI Image Services ───────────────────────────────────
+// Verified live against bedrock-runtime us-east-1. All ids require the `us.`
+// cross-region inference prefix; the bare `stability.*` id is NOT invocable.
+export enum BedrockModel {
+  // Upscale
+  UPSCALE_FAST = "us.stability.stable-fast-upscale-v1:0",
+  UPSCALE_CONSERVATIVE = "us.stability.stable-conservative-upscale-v1:0",
+  UPSCALE_CREATIVE = "us.stability.stable-creative-upscale-v1:0",
+  // Edit
+  INPAINT = "us.stability.stable-image-inpaint-v1:0",
+  OUTPAINT = "us.stability.stable-outpaint-v1:0",
+  ERASE = "us.stability.stable-image-erase-object-v1:0",
+  REMOVE_BACKGROUND = "us.stability.stable-image-remove-background-v1:0",
+  SEARCH_REPLACE = "us.stability.stable-image-search-replace-v1:0",
+  SEARCH_RECOLOR = "us.stability.stable-image-search-recolor-v1:0",
+  // Control
+  CONTROL_SKETCH = "us.stability.stable-image-control-sketch-v1:0",
+  CONTROL_STRUCTURE = "us.stability.stable-image-control-structure-v1:0",
+  STYLE_GUIDE = "us.stability.stable-image-style-guide-v1:0",
+  STYLE_TRANSFER = "us.stability.stable-style-transfer-v1:0"
+}
+
+export type BedrockCategory = 'upscale' | 'edit' | 'control';
+
+/** A single tunable field a Bedrock service exposes in the UI. */
+export interface BedrockParam {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'slider' | 'select' | 'image' | 'mask' | 'directions';
+  required?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  default?: string | number;
+  options?: string[];
+  hint?: string;
+}
+
+export interface BedrockService {
+  id: BedrockModel;
+  label: string;
+  category: BedrockCategory;
+  description: string;
+  /** Field name the source image is sent under. Style transfer uses init_image. */
+  imageField: 'image' | 'init_image';
+  params: BedrockParam[];
+  /** Upscalers return huge payloads; PNG can exceed the Bedrock response cap. */
+  forceJpeg?: boolean;
+  /** Max input pixels enforced client-side before the call to avoid 400s. */
+  maxInputPixels?: number;
+  minInputPixels?: number;
+}
+
+/** Values collected from the UI for one Bedrock invocation. */
+export type BedrockParamValues = Record<string, string | number | undefined>;
+
+export type OutputFormat = 'png' | 'jpeg' | 'webp';
+
 export enum LightingStyle {
   NONE = "Natural / Raw",
   CINEMATIC = "Cinematic",
@@ -103,7 +161,25 @@ export type ImageStatus = 'completed' | 'generating' | 'error';
 
 export interface GeneratedImage {
   id: string;
+  /**
+   * Full-resolution image source.
+   *
+   * Legacy records hold a base64 data URL here. From storage v4 onward the
+   * heavy pixels live in the `imageBlobs` store and this is left EMPTY on the
+   * records returned by `loadImagesFromStorage`, so the gallery never pulls
+   * megabytes into memory. Use `resolveFullImage(image)` to obtain a usable
+   * src on demand (detail view, edit, export).
+   */
   url: string;
+  /** Small WebP data URL rendered by the gallery grid. Cheap to keep in state. */
+  thumbnail?: string;
+  /** True when the full-resolution pixels live in the `imageBlobs` store. */
+  hasBlob?: boolean;
+  /** Byte size of the full-resolution image, for UI display. */
+  byteSize?: number;
+  /** Natural pixel dimensions of the full-resolution image. */
+  width?: number;
+  height?: number;
   prompt: string;
   timestamp: number;
   settings: GenerationSettings;
@@ -112,6 +188,21 @@ export interface GeneratedImage {
   status?: ImageStatus; // Added to track active generation state
   error?: string;
   favorite?: boolean; // Starred / favorited by the user
+  /** Folder this image is filed under. `undefined` = Unsorted. */
+  folderId?: string;
+  /** Which engine produced it — Gemini generation or a Bedrock service. */
+  provider?: 'gemini' | 'bedrock';
+  /** Bedrock service id when provider === 'bedrock'. */
+  bedrockModel?: BedrockModel;
+}
+
+/** A user-created gallery folder. */
+export interface Folder {
+  id: string;
+  name: string;
+  color?: string;
+  collapsed?: boolean;
+  timestamp: number;
 }
 
 export interface OptimizationResponse {

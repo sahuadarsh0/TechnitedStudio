@@ -1,11 +1,22 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GeneratedImage, GenerationSettings, GenerationError } from '../types';
+import { GeneratedImage, GenerationSettings, GenerationError, BedrockModel, BedrockParamValues } from '../types';
 import { generateImages, editImage } from '../services/imageService';
+import { runBedrockService } from '../services/bedrockService';
 import { playSound } from '../services/soundService';
 import { parseError } from '../services/errorService';
 import { uuid } from '../services/uuid';
-import { loadImagesFromStorage, saveImageToStorage, clearImagesFromStorage, deleteImagesFromStorage } from '../services/storageService';
+import { finalizeImage } from '../services/imageFinalizer';
+import {
+  loadImagesFromStorage,
+  saveImageToStorage,
+  patchImageMeta,
+  clearImagesFromStorage,
+  deleteImagesFromStorage,
+  migrateLegacyImages,
+  resolveFullImage,
+  setImagesFolder,
+} from '../services/storageService';
 
 interface UseImageGenerationProps {
   settings: GenerationSettings;
@@ -27,6 +38,14 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
         const persistedImages = await loadImagesFromStorage();
         if (persistedImages && persistedImages.length > 0) {
           setImages(persistedImages);
+        }
+        // Migrate any legacy v3 records (full data URL embedded in the metadata
+        // row) in the background, then refresh so the grid picks up thumbnails.
+        const migrated = await migrateLegacyImages();
+        if (migrated > 0) {
+          const refreshed = await loadImagesFromStorage();
+          setImages(refreshed);
+          console.info(`Migrated ${migrated} legacy image record(s) to storage v4.`);
         }
       } catch (e) {
         console.error("Failed to load image history:", e);
@@ -63,7 +82,8 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
     referenceImages: string[] | null,
     editingImage: GeneratedImage | null,
     onSuccess: (newImages: GeneratedImage[]) => void,
-    overrideSettings?: GenerationSettings
+    overrideSettings?: GenerationSettings,
+    targetFolderId?: string
   ) => {
     
     const activeSettings = overrideSettings || settings;
@@ -85,7 +105,8 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
             prompt: prompt,
             timestamp: Date.now(),
             settings: activeSettings,
-            status: 'generating'
+            status: 'generating',
+            folderId: targetFolderId,
         };
         newPlaceholders.push(placeholder);
         
@@ -110,7 +131,10 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
             let resultImages: GeneratedImage[] = [];
 
             if (editingImage) {
-                resultImages = await editImage(editingImage.url, prompt, singleShotSettings, controller.signal);
+                // Records loaded from storage carry no inline pixels, so the
+                // full-resolution source must be resolved before editing.
+                const editSource = await resolveFullImage(editingImage);
+                resultImages = await editImage(editSource, prompt, singleShotSettings, controller.signal);
             } else if (activeSettings.isImageToImage && referenceImages && referenceImages.length > 0) {
                 resultImages = await editImage(referenceImages, prompt, singleShotSettings, controller.signal);
             } else {
@@ -121,16 +145,17 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
 
             if (resultImages && resultImages.length > 0) {
                 const completedImage = resultImages[0];
-                // Update the specific placeholder with real data
+                // Split the heavy pixels out before they ever reach React state.
+                const { record } = await finalizeImage({
+                    ...completedImage,
+                    id: placeholder.id, // keep grid position stable
+                    status: 'completed',
+                    folderId: targetFolderId,
+                });
                 setImages(prev => prev.map(img => {
                     if (img.id === placeholder.id) {
-                        const updated = { 
-                            ...completedImage, 
-                            id: placeholder.id, // Keep the placeholder ID to maintain grid position stability if needed, or use new ID
-                            status: 'completed' as const
-                        };
-                        saveImageToStorage(updated).catch(console.warn);
-                        return updated;
+                        saveImageToStorage({ ...record, url: completedImage.url }).catch(console.warn);
+                        return record;
                     }
                     return img;
                 }));
@@ -218,11 +243,16 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
       const results = await producer(controller.signal);
       if (controller.signal.aborted) return;
       if (results && results.length > 0) {
+        const { record } = await finalizeImage({
+          ...results[0],
+          id: tempId,
+          status: 'completed',
+          folderId: seed.folderId,
+        });
         setImages(prev => prev.map(img => {
           if (img.id !== tempId) return img;
-          const updated = { ...results[0], id: tempId, status: 'completed' as const };
-          saveImageToStorage(updated).catch(console.warn);
-          return updated;
+          saveImageToStorage({ ...record, url: results[0].url }).catch(console.warn);
+          return record;
         }));
         playSound('success', seed.settings.enableSounds);
         setShowSuccessFlash(true);
@@ -250,9 +280,43 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
     setImages(prev => prev.map(img => {
       if (img.id !== id) return img;
       const updated = { ...img, favorite: !img.favorite };
-      saveImageToStorage(updated).catch(console.warn);
+      // Metadata-only write: never re-save `url` here or the blob store entry
+      // would be overwritten with an empty string.
+      patchImageMeta(updated).catch(console.warn);
       return updated;
     }));
+  }, []);
+
+  /**
+   * Runs a Bedrock Stability service against an existing image and files the
+   * result next to it. Reuses the same placeholder / error-card lifecycle as
+   * Gemini edits so the UI behaves identically for both providers.
+   */
+  const runBedrock = useCallback(async (
+    seed: GeneratedImage,
+    modelId: BedrockModel,
+    values: BedrockParamValues
+  ) => {
+    const source = await resolveFullImage(seed);
+    if (!source) {
+      setError({ message: 'Source image could not be loaded.', code: 'SOURCE_MISSING' });
+      return;
+    }
+    await runEdit(seed, (signal) =>
+      runBedrockService(modelId, source, values, seed.settings, signal)
+    );
+  }, []);
+
+  /** Moves images into a folder (or to Unsorted when folderId is null). */
+  const assignFolder = useCallback((ids: string[], folderId: string | null) => {
+    setImages(prev => prev.map(img => {
+      if (!ids.includes(img.id)) return img;
+      const next = { ...img };
+      if (folderId) next.folderId = folderId;
+      else delete next.folderId;
+      return next;
+    }));
+    setImagesFolder(ids, folderId).catch(console.warn);
   }, []);
 
   // Retry an errored image: re-run with its stored prompt + settings in place.
@@ -274,11 +338,16 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
       const results = await generateImages(target.prompt, single, controller.signal);
       if (controller.signal.aborted) return;
       if (results && results.length > 0) {
+        const { record } = await finalizeImage({
+          ...results[0],
+          id,
+          status: 'completed',
+          folderId: target.folderId,
+        });
         setImages(prev => prev.map(img => {
           if (img.id !== id) return img;
-          const updated = { ...results[0], id, status: 'completed' as const };
-          saveImageToStorage(updated).catch(console.warn);
-          return updated;
+          saveImageToStorage({ ...record, url: results[0].url }).catch(console.warn);
+          return record;
         }));
         playSound('success', target.settings.enableSounds);
       } else {
@@ -297,9 +366,10 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
     }
   }, []);
   
-  const prependImage = (image: GeneratedImage) => {
+  const prependImage = async (image: GeneratedImage) => {
+    const { record } = await finalizeImage(image);
     saveImageToStorage(image).catch(e => console.warn("Save failed", e));
-    setImages(prev => [image, ...prev]);
+    setImages(prev => [record, ...prev]);
   };
 
   return {
@@ -318,6 +388,8 @@ export const useImageGeneration = ({ settings }: UseImageGenerationProps) => {
     prependImage,
     toggleFavorite,
     retryImage,
-    runEdit
+    runEdit,
+    runBedrock,
+    assignFolder
   };
 };
